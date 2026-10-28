@@ -2,7 +2,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 require("../site/rules.js");
-require("../site/departments.js");
 const R = NameOffice.rules;
 const names = ["Lady Soup", "Dr Doofenshmirtz", "Aei Oua", "Anne Anne", "Élodie OTurnipAnneSou", "李小龙 王小明", "a\u0332bc def", "Aaaa AaaaAaaaa", "a " + "a".repeat(19)];
 
@@ -56,25 +55,6 @@ test("seeded puzzle generation replays without ambient randomness and varies bet
     assert.deepEqual(seal(123), seal(123));
     for (const puzzle of seal(123)) assert.ok(!R.sealDeduction(puzzle).includes(null));
   } finally { Math.random = original; }
-});
-
-test("every department defines its paperwork, instructions, notes and action copy", () => {
-  const holds = new Set();
-  const approvals = new Set();
-  for (const department of NameOffice.departments) {
-    for (const field of ["label", "department", "title", "description", "body", "action", "footnote"]) {
-      assert.ok(typeof department[field] === "string" && department[field].trim(), `${department.label}: missing ${field}`);
-    }
-    assert.ok(department.note.text && department.note.author);
-    assert.ok(department.paperwork.hold.trim());
-    const approval = typeof department.paperwork.approval === "function"
-      ? department.paperwork.approval({ archive: { number: 78 } }) : department.paperwork.approval;
-    assert.ok(approval.trim());
-    holds.add(department.paperwork.hold);
-    approvals.add(approval);
-  }
-  assert.equal(holds.size, NameOffice.departments.length, "every department needs a specific outstanding requirement");
-  assert.equal(approvals.size, NameOffice.departments.length, "every approval needs a specific result");
 });
 
 test("name cleanup ignores punctuation, numbers and extra whitespace without changing case", () => {

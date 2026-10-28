@@ -55,7 +55,7 @@
     document.querySelector("#ticker-serving").textContent = String(snapshot.serving).padStart(3, "0");
     document.querySelector("#ticker-number").textContent = String(state.queue.number).padStart(3, "0");
     document.querySelector("#ticker-ahead").textContent = snapshot.ahead === 1 ? "YOU’RE NEXT" : `${snapshot.ahead} AHEAD`;
-    const footer = phase === "waiting" ? `${R.queuePlaces} AHEAD · STARTS AT BEGIN`
+    const footer = phase === "waiting" ? `${R.queuePlaces} AHEAD`
       : phase === "complete" ? "PAPERWORK READY. TURN SECURED."
         : phase === "missed" ? "YOUR TURN. YOUR PAPERS?"
           : snapshot.ahead === 1 ? "YOUR NUMBER IS NEXT."
@@ -115,7 +115,6 @@
     document.querySelector("#office-note-title").textContent = state.lost ? "Filed too slow" : state.current === 0 ? "Before you begin" : complete ? "One final scrap" : "Found in the queue";
     document.querySelector("#office-note-text").textContent = state.current === 0 ? note.text : `“${note.text}”`;
     document.querySelector("#office-note-author").textContent = "— " + note.author;
-    document.querySelector("#office-note-estimate").hidden = state.current !== 0;
     const random = R.createRandom(state.seed, state.applicant, `note/${state.current}/${state.lost}`);
     paper.style.setProperty("--note-x", `${(random() * 8 - 4).toFixed(1)}px`);
     paper.style.setProperty("--note-y", `${(random() * 6 - 3).toFixed(1)}px`);

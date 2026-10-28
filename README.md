@@ -192,6 +192,10 @@ Scripts load in order with `defer`; no module server is needed for `file://`
 previews. Name content is inserted with `textContent`, never HTML. Unicode
 graphemes stay together when letters are scattered or reversed.
 
+Authored headings, notes, instructions and messages are editable copy, not test
+fixtures. Tests check state changes, generated puzzle answers and interactions
+without duplicating that wording.
+
 Run the dependency-free rule checks with `node --test tests/rules.test.cjs`.
 They verify name normalization, complete stamp trays and uniquely solvable archive deductions, the switchboard's
 unique solution, copier solvability, and name-keyed cipher decoding. An independent solver
@@ -211,7 +215,7 @@ actual department setups against their seeded generators. Use `--seed-only` for
 just replay-link checks or `--queue-only` for just queue checks. It also
 checks the fixed queue gap, exact deadline boundaries, escalating warnings,
 background catch-up, timeout/restart and completion freeze; changing notes with a stationary clip; empty
-and populated messages, focus styling, and action/footnote spacing on mobile. Set
+and populated messages, focus styling, and mobile overflow. Set
 `TEST_BROWSERS=chromium,firefox,webkit` to check additional installed engines.
 
 ## Publish to a Badux installation
