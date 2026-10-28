@@ -208,6 +208,7 @@ h1 em {
 .intro-aside {
   width: 300px;
   flex-shrink: 0;
+  text-align: right;
   padding-bottom: 4px
 }
 
@@ -227,8 +228,9 @@ h1 em {
 .privacy-note {
   font-size: 10px;
   line-height: 1.6;
-  max-width: 300px;
+  max-width: 240px;
   color: var(--muted);
+  margin-left: auto;
   margin-bottom: 0
 }
 
@@ -1078,6 +1080,7 @@ footer {
 
   .intro-aside {
     width: auto;
+    text-align: left;
     margin-top: 14px;
     display: grid;
     grid-template-columns: 1fr 1fr;
