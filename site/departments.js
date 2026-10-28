@@ -53,7 +53,7 @@
       label: "Intake", department: "INITIAL INTAKE", title: "Let's get started.",
       paperwork: { hold: "Name required.", approval: "Name chosen." },
       description: "Enter exactly two names: first and last. 6–20 letters total.",
-      body: input("Your entirely fictional name", "name-input", "e.g. Dr. Doofenshmirtz") + `<div class="field-caption"><span>We ignore punctuation and extra spaces.</span></div><p class="deadline-rule">Finish before your number is called. Miss your turn and restart.</p>`,
+      body: input("Your entirely fictional name", "name-input", "e.g. Dr. Doofenshmirtz") + `<p class="deadline-rule">Make sure to finish the paperwork before your number is called!</p>`,
       action: "Begin paperwork", footnoteLabel: "NO ID REQUIRED", footnote: "(We wouldn't know what to do with it)",
       note: { text: "First and last name only. A pretend one is ideal.", author: "Management, 1987" },
       mount: ({ root }) => ({
