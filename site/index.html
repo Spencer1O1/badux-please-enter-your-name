@@ -1,30 +1,57 @@
 <!doctype html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f3f0e5">
   <title>Please enter your name. | Department of Name Acquisition</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./style.css">
-  <script src="./app.js" defer></script>
+  <link rel="stylesheet" href="./style.css?v=20261028-feedback-1">
+  <link rel="stylesheet" href="./puzzles.css?v=20261028-feedback-1">
+  <script src="./rules.js?v=20261028-seeded-2" defer></script>
+  <script src="./departments.js?v=20261028-seeded-2" defer></script>
+  <script src="./app.js?v=20261028-seeded-2" defer></script>
 </head>
+
 <body>
   <a class="skip-link" href="#application">Skip to application</a>
-  <div class="notice"><span class="notice-dot" aria-hidden="true"></span> A PUBLIC SERVICE. TECHNICALLY. <span class="notice-end">FORM N-01 / REVISION TOO MANY</span></div>
+  <div class="notice"><span class="notice-dot" aria-hidden="true"></span> A PUBLIC SERVICE. TECHNICALLY. <span
+      class="notice-end">FORM N-01 / REVISION TOO MANY</span></div>
   <header class="masthead">
-    <a class="wordmark" href="./" aria-label="Department of Name Acquisition home"><span class="seal" aria-hidden="true">N<span>®</span></span><span>DEPARTMENT OF<br>NAME ACQUISITION</span></a>
-    <div class="office-status"><span aria-hidden="true">●</span> OPEN, RELUCTANTLY <small>Your patience is our renewable resource.</small></div>
+    <a class="wordmark" href="./" aria-label="Department of Name Acquisition home"><span class="seal"
+        aria-hidden="true">N</span><span>DEPARTMENT OF<br>NAME ACQUISITION</span></a>
+    <div class="office-status"><span aria-hidden="true">●</span> OPEN, RELUCTANTLY <small>Your patience is our renewable
+        resource.</small></div>
   </header>
+  <div class="queue-ticker" id="queue-ticker" hidden aria-hidden="true"><span>NOW <strong
+        id="ticker-serving">—</strong></span><span>YOUR <strong id="ticker-number">—</strong></span><span
+      id="ticker-ahead"></span></div>
+  <span id="queue-announcement" class="queue-announcement" role="status" aria-live="polite" aria-atomic="true"></span>
   <main>
     <section class="intro" aria-labelledby="title">
-      <div><p class="eyebrow">IDENTITY SERVICES / NONESSENTIAL DIVISION</p><h1 id="title">Please enter<br>your <em>name.</em><span class="title-star" aria-hidden="true">✳</span></h1></div>
-      <div class="intro-aside"><span class="label-tag">A SIMPLE REQUEST™</span><p>One name. Four departments.<br>An entirely avoidable amount<br>of paperwork.</p><p class="privacy-note">Use an invented name. This office stores nothing. Not even competence.</p></div>
+      <div>
+        <p class="eyebrow">IDENTITY SERVICES / NONESSENTIAL DIVISION</p>
+        <h1 id="title">Please enter your <em>name.</em><span class="title-star" aria-hidden="true">✳</span></h1>
+      </div>
+      <div class="intro-aside"><span class="label-tag">A SIMPLE REQUEST™</span>
+        <p>Your name is just the beginning.<br>The paperwork has other plans.</p>
+        <p class="privacy-note">Use an invented name. This office stores nothing. Not even competence.</p>
+      </div>
     </section>
     <div class="workspace">
-      <aside class="queue" aria-label="Office information">
-        <div class="queue-screen"><span class="micro">NOW SERVING</span><strong>004</strong><span class="queue-divider"></span><span class="micro">YOUR NUMBER</span><b>317</b><span class="micro queue-footer">YOU ARE BASICALLY NEXT.</span></div>
-        <div class="office-note"><span class="paperclip" aria-hidden="true"></span><h2>Before you begin</h2><p>Have a name ready.<br>A pretend one is ideal.</p><p>Estimated time:<br><strong>“Just a second.”</strong></p><p class="note-foot">— Management, 1987</p></div>
+      <aside class="queue" aria-label="Office queue">
+        <div class="queue-screen"><span class="micro">NOW SERVING</span><strong id="now-serving">—</strong><span
+            class="queue-divider"></span><span class="micro">YOUR NUMBER</span><b id="queue-number">—</b><span
+            class="micro queue-footer">48 AHEAD · STARTS AT BEGIN</span></div>
+      </aside>
+      <aside class="office-note" aria-labelledby="office-note-title"><span class="paperclip" aria-hidden="true"></span>
+        <div class="note-paper">
+          <h2 id="office-note-title">Before you begin</h2>
+          <p id="office-note-text">Have exactly two names ready: first and last.</p>
+          <p id="office-note-estimate">Time before your turn:<br><strong>8 minutes after Begin.</strong></p>
+          <p id="office-note-author" class="note-foot">— Management, 1987</p>
+        </div>
       </aside>
       <section class="application" id="application" aria-labelledby="stage-title" tabindex="-1">
         <div class="paper-top"><span>APPLICATION FOR A NAME</span><span id="form-number">N-01</span></div>
@@ -36,14 +63,44 @@
         </ol>
         <div id="stage"></div>
         <div class="message" id="message" role="status" aria-live="polite" aria-atomic="true"></div>
-        <div class="paper-bottom"><span id="page-count">PAGE 1 OF UNNECESSARY</span><button class="text-button" id="hint-button" type="button">I require assistance ↗</button></div>
+        <div class="paper-bottom"><span id="page-count">PAGE 1 OF UNNECESSARY PAPERWORK</span><button
+            class="text-button" id="hint-button" type="button">I require assistance ↗</button></div>
       </section>
       <aside class="receipt" aria-label="Application receipt">
-        <span class="receipt-notch" aria-hidden="true"></span><p class="eyebrow">YOUR PAPER TRAIL</p><h2>Nothing to<br>report. Yet.</h2><div class="receipt-rule"></div><dl><div><dt>APPLICANT</dt><dd id="receipt-name">Undetermined</dd></div><div><dt>FORMS COMPLETED</dt><dd id="receipt-count">0 / 4</dd></div><div><dt>DATA SAVED</dt><dd>Absolutely none</dd></div></dl><p id="receipt-comment" class="receipt-comment">A blank form is a form<br>full of possibilities.</p><div class="barcode" aria-hidden="true"></div><span class="receipt-code">KEEP THIS RECEIPT IN YOUR IMAGINATION</span>
+        <span class="receipt-notch" aria-hidden="true"></span>
+        <p class="eyebrow">YOUR PAPER TRAIL</p>
+        <h2>Nothing to<br>report. Yet.</h2>
+        <div class="receipt-rule"></div>
+        <dl>
+          <div>
+            <dt>APPLICANT</dt>
+            <dd id="receipt-name">Undetermined</dd>
+          </div>
+          <div>
+            <dt>FORMS COMPLETED</dt>
+            <dd id="receipt-count">0 filed</dd>
+          </div>
+          <div>
+            <dt>DATA SAVED</dt>
+            <dd>Absolutely none</dd>
+          </div>
+        </dl>
+        <div id="receipt-comment" class="receipt-status" aria-label="Application status">
+          <p><span class="micro">LAST CLEARED</span><span id="receipt-cleared">Nothing filed yet.</span></p>
+          <p><span class="micro" id="receipt-hold-label">CURRENT HOLD</span><span id="receipt-hold">Intake: Name
+              required.</span></p>
+        </div>
+        <div class="barcode" aria-hidden="true"></div><span class="receipt-code">KEEP THIS RECEIPT IN YOUR
+          IMAGINATION</span>
       </aside>
     </div>
-    <footer><span>DEPT. OF NAME ACQUISITION <span aria-hidden="true">©</span> THIS VERY MOMENT</span><span>No real names. No data saved. No good reason.</span><button class="text-button" id="reset-button" type="button">Shred application ↺</button></footer>
+    <footer><span>DEPT. OF NAME ACQUISITION <span aria-hidden="true">©</span> THIS VERY MOMENT</span><span>No real
+        names. No data saved. No good reason.</span><button class="text-button" id="reset-button" type="button">Shred
+        application ↺</button></footer>
   </main>
-  <noscript><p class="noscript">This entirely unnecessary paperwork needs JavaScript. No information is sent anywhere.</p></noscript>
+  <noscript>
+    <p class="noscript">This entirely unnecessary paperwork needs JavaScript. No information is sent anywhere.</p>
+  </noscript>
 </body>
+
 </html>

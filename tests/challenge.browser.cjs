@@ -1,0 +1,762 @@
+"use strict";
+// Optional integration suite; pass an installed Playwright package as argv[2] or PLAYWRIGHT_MODULE.
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const { pathToFileURL } = require("node:url");
+const { resolve } = require("node:path");
+const playwright = require(process.env.PLAYWRIGHT_MODULE || process.argv[2] || "playwright");
+const url = pathToFileURL(resolve(__dirname, "../site/index.html")).href;
+const option = name => process.argv.find(arg => arg.startsWith(`--${name}=`))?.slice(name.length + 3);
+const engines = (option("engines") || process.env.TEST_BROWSERS || "chromium").split(",");
+const screenshotDirectory = option("screenshots") || process.env.SCREENSHOT_DIR;
+const seedOnly = process.argv.includes("--seed-only");
+require("../site/rules.js");
+const R = NameOffice.rules;
+const queueTestTime = Date.UTC(2026, 9, 28, 12);
+
+for (const engine of engines) {
+  const layouts = engine === "chromium" ? [
+    { label: "desktop", width: 1440, height: 1100, name: "Dr. Doofenshmirtz" },
+    { label: "narrow touch", width: 320, height: 740, name: "Élodie O’Turnip-AnneSou", touch: true },
+    { label: "all vowels", width: 390, height: 844, name: "Aei Oua" },
+    { label: "short first name", width: 375, height: 812, name: "A Bcdefghijklmnopqrst", touch: true }
+  ] : [{ label: "desktop", width: 1280, height: 1000, name: "Lady Soup" }];
+
+  for (const layout of process.argv.includes("--queue-only") || seedOnly ? [] : layouts) {
+    test(`${engine}, ${layout.label}: all twelve departments, retries, hints, navigation and shredding`, { timeout: 90000 }, async () => {
+      const browser = await playwright[engine].launch({ headless: true });
+      try {
+        const page = await browser.newPage({
+          viewport: { width: layout.width, height: layout.height },
+          hasTouch: !!layout.touch, reducedMotion: "reduce"
+        });
+        const errors = [];
+        const network = [];
+        page.on("pageerror", error => errors.push(error.message));
+        page.on("request", request => { if (/^https?:/.test(request.url())) network.push(request.url()); });
+        page.setDefaultTimeout(5000);
+        await page.clock.setFixedTime(queueTestTime);
+        await page.goto(url);
+        const runCode = await page.locator("body").getAttribute("data-run-seed");
+        const runSeed = parseInt(runCode, 16);
+        assert.match(runCode, /^[0-9A-F]{8}$/);
+        assert.equal(new URL(page.url()).hash, `#seed=${runCode}`);
+        const submit = () => page.locator("#department-form [type=submit]").click();
+        let assistanceCount = 0;
+        const hint = async () => {
+          await page.locator("#hint-button").click();
+          assistanceCount++;
+          assert.ok((await page.locator("#message").textContent()).length);
+        };
+        const screenshot = async label => {
+          if (screenshotDirectory) {
+            await page.screenshot({ path: resolve(screenshotDirectory, `name-office-${engine}-${layout.width}-${label}.png`), fullPage: true });
+            if (["intake", "volume"].includes(label)) await page.locator(".application").screenshot({ path: resolve(screenshotDirectory, `name-office-${engine}-${layout.width}-${label}-form.png`) });
+          }
+        };
+        const queueNumber = await page.locator("#queue-number").textContent();
+        const serving = await page.locator("#now-serving").textContent();
+        assert.ok(Number(queueNumber) >= 100 && Number(queueNumber) <= 999);
+        assert.equal(Number(queueNumber) - Number(serving), 48);
+        assert.equal(await page.locator("body").getAttribute("data-queue-phase"), "waiting");
+        assert.equal(await page.locator(".queue").isVisible(), true);
+        assert.equal(await page.locator(".office-note").isVisible(), true);
+        assert.equal(await page.locator("#message").evaluate(node => node.getBoundingClientRect().height), 0, "an empty status must not leave a bar or blank panel");
+        assert.equal(await page.locator(".footnote-label").textContent(), "NO ID REQUIRED");
+        assert.match(await page.locator(".footnote-group .footnote-text").textContent(), /wouldn't know what to do/);
+        assert.equal(await page.locator(".footnote-group .footnote-text").evaluate(node => {
+          const range = document.createRange();
+          range.selectNodeContents(node);
+          return range.getClientRects().length;
+        }), 1, "the ID footnote must stay on one line");
+        const clipPosition = () => page.locator(".office-note").evaluate(note => {
+          const clip = note.querySelector(".paperclip").getBoundingClientRect();
+          const anchor = note.getBoundingClientRect();
+          return { x: clip.left - anchor.left, y: clip.top - anchor.top };
+        });
+        const clipAnchor = await clipPosition();
+        await screenshot("intake");
+        let lastNote;
+        let lastHold;
+        const expectedHolds = ["Name required.", "Capitalized copy required.", "Vowel clearance required.", "Three exact copies required.",
+          "Shredded name must be restored.", "Reference must be decoded.", "Stamped form required.", "Misfiled application must be found.",
+          "Name must pass through internal mail.", "Nameplate energy permit required.", "Carbon copy must be restored.", "Personal seal required."];
+        const expectedApprovals = ["Name chosen.", "Capitalized copy accepted.", "Vowel clearance granted.", "Identity evidence verified.",
+          "Document fragments restored.", "Reference declassified.", "Stamped form filed.", null, "Internal delivery confirmed.", "Energy permit granted.", "Carbon copy certified."];
+        const departmentLabels = ["Intake", "Volume", "Customs", "Evidence", "Recovery", "Secrecy", "Stamps", "Archive", "Transit", "Energy", "Carbon", "Approval"];
+        async function stage(number) {
+          assert.match(await page.locator("#stage .section-number").textContent(), new RegExp(`DEPARTMENT ${String(number).padStart(2, "0")} /`));
+          assert.equal(await page.locator(".progress li").count(), 4);
+          assert.equal(await page.locator(".progress [aria-current=step] span").textContent(), String(number).padStart(2, "0"));
+          if (number >= 5) {
+            const expected = [number - 3, number - 2, number - 1, number].map(i => String(i).padStart(2, "0"));
+            assert.deepEqual(await page.locator(".progress li span").allTextContents(), expected);
+          }
+          assert.equal(await page.locator("#receipt-count").textContent(), `${number - 1} filed`);
+          const hold = await page.locator("#receipt-hold").textContent();
+          assert.equal(hold, `${departmentLabels[number - 1]}: ${expectedHolds[number - 1]}`);
+          assert.notEqual(hold, lastHold, "the receipt needs a new requirement at every department");
+          lastHold = hold;
+          assert.equal(await page.locator("#receipt-hold-label").textContent(), "CURRENT HOLD");
+          const cleared = await page.locator("#receipt-cleared").textContent();
+          if (number === 1) assert.equal(cleared, "Nothing filed yet.");
+          else {
+            if (number === 9) assert.match(cleared, /^Archive: Application file \d+ retrieved\.$/);
+            else assert.equal(cleared, `${departmentLabels[number - 2]}: ${expectedApprovals[number - 2]}`);
+            const transition = await page.locator("#message").textContent();
+            assert.ok(transition.includes(cleared.split(": ").slice(1).join(": ")));
+            assert.ok(transition.endsWith(`${departmentLabels[number - 1]}.`), "the referral must name the current department");
+          }
+          if (number > 1) {
+            assert.equal(await page.evaluate(() => document.activeElement.id), "stage-title");
+            assert.equal(await page.locator("#stage-title").evaluate(node => getComputedStyle(node).outlineStyle), "none", "department headings must not get a focus box");
+          }
+          assert.equal(await page.locator("#queue-number").textContent(), queueNumber, "the ticket stays with the application");
+          assert.equal(await page.locator("#now-serving").textContent(), serving);
+          assert.equal(await page.locator("#office-note-title").textContent(), number === 1 ? "Before you begin" : "Found in the queue");
+          assert.equal(await page.locator("#office-note-estimate").isVisible(), number === 1);
+          const note = await page.locator("#office-note-text").textContent();
+          assert.notEqual(note, lastNote, "each department has a new applicant's note");
+          lastNote = note;
+          const clip = await clipPosition();
+          assert.ok(Math.abs(clip.x - clipAnchor.x) < .1 && Math.abs(clip.y - clipAnchor.y) < .1, "the paperclip must stay anchored while the paper shifts");
+          const placement = await page.locator(".office-note").evaluate(node => ["--note-x", "--note-y", "--note-angle"].map(name => parseFloat(node.style.getPropertyValue(name))));
+          assert.ok(Math.abs(placement[0]) <= 4 && Math.abs(placement[1]) <= 3 && Math.abs(placement[2]) <= 3, "the note's movement must stay subtle");
+          assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, `department ${number} must fit ${layout.width}px`);
+          const receiptBeforeHint = await page.locator("#receipt-comment").textContent();
+          await hint();
+          if (number === 2) await hint(); // Repeated requests in the same department count separately.
+          assert.equal(await page.locator("#receipt-comment").textContent(), receiptBeforeHint, "hints don't alter approved paperwork or the current hold");
+          const messageCenterOffset = await page.locator("#message").evaluate(node => {
+            const range = document.createRange();
+            range.selectNodeContents(node);
+            const text = range.getBoundingClientRect();
+            const box = node.getBoundingClientRect();
+            return Math.abs((text.top + text.bottom) / 2 - (box.top + box.bottom) / 2);
+          });
+          assert.ok(messageCenterOffset < 4, "status text should sit vertically centered beside its bar");
+          const button = await page.locator("#department-form [type=submit]").boundingBox();
+          const footnote = await page.locator(".legal-small").boundingBox();
+          const actions = await page.locator("#department-form .action-row").boundingBox();
+          assert.ok(Math.abs(footnote.x + footnote.width - actions.x - actions.width) < 1, "small print must align to the form's right edge");
+          if (layout.width >= 1000) {
+            assert.ok(footnote.x >= button.x + button.width + 12, "small print belongs opposite the action button");
+            assert.ok(Math.abs(footnote.y + footnote.height - button.y - button.height) < 1, "small print should align with the button's bottom edge");
+          } else assert.ok(footnote.y >= button.y + button.height + 6, "narrow layouts should keep small print on a separate right-aligned row");
+          const textLayout = await page.locator(".footnote-text").evaluate(node => {
+            const range = document.createRange();
+            range.selectNodeContents(node);
+            const box = node.getBoundingClientRect();
+            return { lines: range.getClientRects().length, right: range.getBoundingClientRect().right, boxRight: box.right };
+          });
+          assert.equal(textLayout.lines, 1, "the action footnote must not strand a word on a second line");
+          assert.ok(Math.abs(textLayout.right - textLayout.boxRight) < 1, "footnote text must be right aligned");
+        }
+        const name = R.normalizeName(layout.name);
+        const stageRandom = label => R.createRandom(runSeed, name, label);
+        await stage(1);
+        await page.locator("#name-input").click();
+        assert.equal(await page.locator("#name-input").evaluate(node => getComputedStyle(node).outlineStyle), "none", "focused name fields should use the subtle inset border");
+        await screenshot("intake-focused");
+        await page.locator("#name-input").press("Tab");
+        assert.notEqual(await page.locator("#department-form [type=submit]").evaluate(node => getComputedStyle(node).outlineStyle), "none", "keyboard focus remains visible on interactive controls");
+        await page.locator("#name-input").fill("<script>");
+        await submit();
+        assert.match(await page.locator("#message").textContent(), /first and last name/);
+        assert.equal(await page.locator("#receipt-cleared").textContent(), "Nothing filed yet.");
+        await page.locator("#name-input").fill("Lady Soup Junior");
+        await submit();
+        assert.match(await page.locator("#message").textContent(), /exactly a first and last name/);
+        assert.equal(await page.locator("#receipt-count").textContent(), "0 filed");
+        await page.locator("#name-input").fill(layout.name);
+        assert.equal(await page.locator("#message").textContent(), "", "editing an answer clears obsolete feedback");
+        await page.locator("#name-input").press("Enter");
+        assert.equal(await page.locator("#receipt-name").textContent(), name);
+        await stage(2);
+        await screenshot("volume");
+        await page.locator("#name-input").fill(layout.name.toUpperCase() + "!!!");
+        await submit();
+        await stage(3);
+        await screenshot("customs");
+        const customs = await page.evaluate(name => NameOffice.rules.customs(name), name);
+        assert.equal(await page.locator("#instructions").textContent(), "Remove all the vowels from your name... Y has diplomatic immunity");
+        await page.locator("#name-input").fill((customs.replace(/y/gi, "").trim() || "NONE").toLowerCase() + "...");
+        await submit();
+        await stage(4);
+        const tiles = page.locator(".name-tile");
+        const labels = await tiles.allTextContents();
+        assert.deepEqual(labels, R.makeNameEvidence(name, stageRandom("Evidence")));
+        const exact = labels.flatMap((label, i) => label === name ? [i] : []);
+        assert.equal(exact.length, 3);
+        const punctuationDecoy = labels.indexOf(name + "!");
+        assert.ok(punctuationDecoy >= 0);
+        for (const index of [exact[0], exact[1], punctuationDecoy]) {
+          await tiles.nth(index).focus();
+          await page.keyboard.press("Space");
+        }
+        await submit();
+        assert.equal(await page.locator("#stage-title").textContent(), "Identify yourself. Three times.");
+        assert.equal(await page.locator("#message").textContent(), "Pick three exact matches.");
+        for (const index of [punctuationDecoy, exact[2]]) {
+          await tiles.nth(index).focus();
+          await page.keyboard.press("Space");
+        }
+        assert.equal(await page.locator("#message").evaluate(node => node.getBoundingClientRect().height), 0);
+        await submit();
+        await stage(5);
+        assert.equal(await page.locator("#stage input").count(), 0, "recovery must have no text field");
+        await screenshot("recovery");
+        const characters = R.letters(name).filter(char => char !== " ");
+        assert.deepEqual(await page.locator(".loose-letter").allTextContents(), R.shuffle(characters, stageRandom("Recovery")));
+        assert.equal(await page.locator(".loose-letter").count(), characters.length);
+        assert.ok(!(await page.locator(".loose-letter").allTextContents()).includes("␣"));
+        if (!layout.touch) {
+          const greenTile = page.locator(".letter-slot:nth-child(3n) .loose-letter").first();
+          await greenTile.hover();
+          assert.equal(await greenTile.evaluate(node => getComputedStyle(node).borderTopColor), "rgb(104, 118, 65)", "green salvage tiles must keep a green hover border");
+          const paperTile = page.locator(".letter-slot:first-child .loose-letter");
+          await paperTile.hover();
+          assert.equal(await paperTile.evaluate(node => getComputedStyle(node).borderTopColor), "rgb(216, 86, 57)", "paper tiles retain their orange hover border");
+        }
+        const piece = char => page.locator(".loose-letter:visible").filter({ hasText: new RegExp(`^${char === " " ? "␣" : char.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`) }).first();
+        // A typed name cannot bypass the recovery puzzle.
+        await page.locator("#stage-title").focus();
+        await page.keyboard.type(name);
+        await submit();
+        assert.match(await page.locator("#message").textContent(), /Keep collecting/);
+        await piece(characters[0]).click();
+        await page.locator("#undo-letter").click();
+        assert.equal(await page.locator("#recovered-name").textContent(), "…");
+        await piece(characters[0]).click();
+        const wrongPiece = (await page.locator(".loose-letter:visible").allTextContents()).find(char => char !== characters[1]);
+        await piece(wrongPiece).click();
+        assert.equal(await page.locator("#recovered-name").textContent(), "…", "a wrong salvage letter must erase all progress");
+        assert.equal(await page.locator(".loose-letter:visible").count(), characters.length, "a mistake must restore every piece");
+        assert.equal(await page.locator("#undo-letter").isDisabled(), true);
+        assert.equal(await page.locator("#message").textContent(), "Wrong letter. Start again.");
+        for (const char of characters) {
+          if (layout.touch) await piece(char).tap();
+          else {
+            await piece(char).focus();
+            await page.keyboard.press("Space");
+          }
+        }
+        assert.equal(await page.locator("#recovered-name").textContent(), name);
+        await submit();
+        await stage(6);
+        assert.equal(await page.locator(".progress [aria-current=step]").textContent(), "06Secrecy");
+        assert.equal(await page.locator("#stage-title").textContent(), "Your name is the key.");
+        assert.equal(await page.locator("#stage #name-input").count(), 0);
+        assert.equal(await page.locator("#dial-forward").count(), 0);
+        await page.locator("#reference-input").fill(layout.name);
+        await submit();
+        assert.equal(await page.locator("#message").textContent(), "Reference mismatch. Check each clue.");
+        const book = await page.locator(".name-index > span").evaluateAll(nodes => nodes.map(node => node.dataset.character));
+        assert.equal(book.join(""), name.toUpperCase().normalize("NFC").replace(/ /g, ""));
+        const alphabet = R.letters(await page.locator("#cipher-alphabet").textContent()).filter(char => char !== " ");
+        const clues = await page.locator(".cipher-clue").evaluateAll(nodes => nodes.map(node => ({ position: Number(node.dataset.position), offset: Number(node.dataset.offset) })));
+        assert.deepEqual(clues, R.nameMemo(name, stageRandom("Secrecy")).clues);
+        assert.equal(clues.length, 6);
+        assert.ok(clues.some(clue => clue.offset >= 2) && clues.some(clue => clue.offset <= -2));
+        assert.equal(await page.locator("#cipher-text").textContent(), clues.map(({ position, offset }) => String(position + 1).padStart(2, "0") + (offset > 0 ? `+${offset}` : offset < 0 ? `−${-offset}` : "=")).join(""));
+        const word = clues.map(({ position, offset }) => alphabet[(alphabet.indexOf(book[position]) + offset + alphabet.length) % alphabet.length]).join("");
+        assert.notEqual(word, book.join(""));
+        await page.locator("#reference-input").fill(word.toLowerCase());
+        assert.equal(await page.locator("#message").textContent(), "");
+        await screenshot("secrecy");
+        await submit();
+        await stage(7);
+        assert.equal(await page.locator(".progress [aria-current=step]").textContent(), "07Stamps");
+        assert.equal(await page.locator(".letter-stamp").count(), 12);
+        const trayShape = await page.locator(".letter-stamp").evaluateAll(nodes => ({
+          rows: new Set(nodes.map(node => Math.round(node.getBoundingClientRect().top))).size,
+          columns: new Set(nodes.map(node => Math.round(node.getBoundingClientRect().left))).size
+        }));
+        assert.deepEqual(trayShape, { rows: 3, columns: 4 });
+        await screenshot("stamps");
+        const stampTarget = name.toUpperCase().normalize("NFC");
+        assert.equal(await page.locator("#stamp-target").textContent(), stampTarget);
+        const stampChars = R.letters(stampTarget);
+        const stampRandom = stageRandom("Stamps");
+        const seededStamps = R.makeNameStamps(name, stampRandom);
+        assert.deepEqual(await page.locator(".letter-stamp").allTextContents(), R.makeStampTray(seededStamps.stamps, stampChars[0], stampRandom));
+        const trayOrder = () => page.locator(".letter-stamp").evaluateAll(nodes => nodes
+          .sort((a, b) => Number(a.style.order) - Number(b.style.order))
+          .map(node => node.dataset.character).join("|"));
+        const stamp = char => page.getByRole("button", { name: `Stamp ${char}`, exact: true });
+        const pickStamp = async char => {
+          if (layout.touch) await stamp(char).tap();
+          else { await stamp(char).focus(); await page.keyboard.press("Space"); }
+        };
+        const beforeFirstStamp = await trayOrder();
+        await pickStamp(stampChars[0]);
+        assert.notEqual(await trayOrder(), beforeFirstStamp, "the clerk must rearrange the stamps after a pick");
+        const stamped = await page.locator("#stamped-name").textContent();
+        const nextRequired = stampChars[R.letters(stamped).length];
+        const wrongStamp = (await page.locator(".letter-stamp").allTextContents()).find(char => char !== nextRequired);
+        const beforeWrongStamp = await trayOrder();
+        await pickStamp(wrongStamp);
+        assert.equal(await page.locator("#message").textContent(), "Wrong stamp. Start again.");
+        assert.equal(await page.locator("#stamped-name").textContent(), "…", "wrong stamps must erase all progress");
+        assert.equal(await page.locator("#stamp-next").textContent(), `Next: “${stampChars[0]}”`);
+        assert.notEqual(await trayOrder(), beforeWrongStamp);
+        await pickStamp(stampChars[0]);
+        await page.locator("#reset-stamps").click();
+        assert.equal(await page.locator("#stamped-name").textContent(), "…");
+        let stampPosition = 0;
+        while (stampPosition < stampChars.length) {
+          const before = await trayOrder();
+          await pickStamp(stampChars[stampPosition]);
+          stampPosition++;
+          while (stampChars[stampPosition] === " ") stampPosition++;
+          assert.equal(await page.locator("#stamped-name").textContent(), stampChars.slice(0, stampPosition).join(""));
+          assert.notEqual(await trayOrder(), before);
+        }
+        assert.equal(await page.locator(".letter-stamp:not(:disabled)").count(), 0);
+        await submit();
+        await stage(8);
+        assert.deepEqual(await page.locator(".name-index > span").evaluateAll(nodes => nodes.map(node => node.dataset.character)), R.nameLetters(name), "Archive must number only letters, without a space slot");
+        const archiveFiles = await page.locator(".archive-file").evaluateAll(nodes => nodes.map(node => ({ number: Number(node.dataset.number), seal: JSON.parse(node.dataset.seal) })));
+        assert.deepEqual(archiveFiles, R.makeNameArchive(name, stageRandom("Archive")).files, "earlier mistakes and reshuffles must not affect Archive");
+        assert.equal(await page.locator(".archive-file strong").evaluateAll(nodes => nodes.every(node => {
+          const slots = [...node.children];
+          return slots.length === 3 && slots.every(slot => slot.getBoundingClientRect().top === slots[0].getBoundingClientRect().top);
+        })), true, "seal positions must stay on one row on narrow screens");
+        const archiveClues = await page.locator(".archive-clerk").evaluateAll(nodes => nodes.map(node => ({ slot: node.dataset.slot === "number" ? null : Number(node.dataset.slot), position: Number(node.dataset.position) })));
+        const archiveTruths = file => archiveClues.map(clue => clue.slot === null
+          ? file.number % 2 === 0 : file.seal[clue.slot] === R.nameLetters(name)[clue.position]);
+        const original = archiveFiles.filter(file => archiveTruths(file).filter(Boolean).length === 3);
+        assert.equal(original.length, 1);
+        const liar = archiveTruths(original[0]).indexOf(false);
+        await submit();
+        assert.match(await page.locator("#message").textContent(), /Select your file/);
+        // A file satisfying every statement is a deliberate trap: one clerk MUST lie.
+        const allHonest = archiveFiles.find(file => archiveTruths(file).every(Boolean));
+        await page.locator(`.archive-file[data-number="${allHonest.number}"]`).click();
+        await page.locator(".archive-clerk").nth(liar).click();
+        await submit();
+        assert.match(await page.locator("#message").textContent(), /matches 4 notes/);
+        await page.locator(`.archive-file[data-number="${original[0].number}"]`).click();
+        await page.locator(".archive-clerk").nth((liar + 1) % 4).click();
+        await submit();
+        assert.match(await page.locator("#message").textContent(), /one mismatched note/);
+        if (layout.touch) await page.locator(".archive-clerk").nth(liar).tap();
+        else {
+          await page.locator(".archive-clerk").nth(liar).focus();
+          await page.keyboard.press("Space");
+        }
+        assert.equal(await page.locator('.archive-file[aria-pressed="true"]').count(), 1);
+        assert.equal(await page.locator('.archive-clerk[aria-pressed="true"]').count(), 1);
+        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+        await screenshot("archive");
+        assert.equal(await page.locator("#message").textContent(), "", "changing the selected filing note clears obsolete errors");
+        const recoveredApplication = `File ${original[0].number} / ${original[0].seal.join(" · ")}`;
+        await submit();
+        await stage(9);
+        await screenshot("transit");
+        if (layout.touch) {
+          await page.locator("#maze-zoom").tap();
+          assert.equal(await page.locator("#maze-zoom").getAttribute("aria-pressed"), "true");
+          assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, "the enlarged map must scroll inside its frame");
+          await page.locator("#maze-zoom").tap();
+          assert.equal(await page.locator("#maze-zoom").getAttribute("aria-pressed"), "false");
+        }
+        const readMaze = () => page.locator(".desk-maze").evaluate(board => ({
+          width: Number(board.dataset.width), start: Number(board.dataset.entrance),
+          passages: [...board.querySelectorAll(".maze-cell")].map(node => JSON.parse(node.dataset.passages)),
+          pickups: [...board.querySelectorAll("[data-piece-index]")].map(node => ({ cell: Number(node.dataset.cell), index: Number(node.dataset.pieceIndex), char: node.dataset.character })).sort((a, b) => a.index - b.index)
+        }));
+        const maze = await readMaze();
+        assert.deepEqual(maze, R.makeNameMaze(name, stageRandom("Transit")));
+        assert.equal(maze.width, 15);
+        assert.equal(await page.locator(".maze-piece small").count(), 0, "maze letters must not have ordinal numbers");
+        assert.equal(maze.pickups.map(piece => piece.char).join(""), name.replace(/ /g, ""));
+        assert.ok(maze.pickups.every(piece => piece.char !== " "));
+        assert.equal(maze.start, 112);
+        assert.equal(await page.locator("#department-form [type=submit]").isDisabled(), true);
+        assert.equal(await page.locator(".maze-cell").count(), 225);
+        const layoutBefore = JSON.stringify(maze);
+        await page.locator('.maze-cell[data-cell="0"]').click();
+        assert.match(await page.locator("#message").textContent(), /clear row or column/);
+        // Arrows and touch buttons travel to the next decision, rather than one tile.
+        const keyNeighbor = maze.passages[maze.start][0];
+        const keyOffset = keyNeighbor - maze.start;
+        const keyDirection = { [-maze.width]: "up", 1: "right", [maze.width]: "down", "-1": "left" }[keyOffset];
+        const keyTarget = R.mazeRun(maze, { position: maze.start, collected: 0 }, keyOffset);
+        const keyResult = R.mazeMove(maze, { position: maze.start, collected: 0 }, keyTarget);
+        if (layout.touch) await page.locator(`[data-direction="${keyDirection}"]`).tap();
+        else {
+          await page.locator(".desk-maze").focus();
+          await page.keyboard.press(`Arrow${keyDirection[0].toUpperCase() + keyDirection.slice(1)}`);
+        }
+        assert.equal(Number(await page.locator(".desk-maze").getAttribute("data-position")), keyResult.position);
+        await page.locator("#restart-maze").click();
+        assert.equal(await page.locator(".desk-maze").getAttribute("data-position"), String(maze.start));
+        let longMoves = 0;
+        async function walk(path, stopAtReset = false) {
+          let from = Number(await page.locator(".desk-maze").getAttribute("data-position"));
+          for (let i = 0; i < path.length;) {
+            const offset = path[i] - from;
+            let target = path[i++];
+            let distance = 1;
+            while (i < path.length && path[i] - target === offset) { target = path[i++]; distance++; }
+            if (distance > 1) longMoves++;
+            const square = page.locator(`.maze-cell[data-cell="${target}"]`);
+            if (layout.touch) await square.tap(); else await square.click();
+            if (stopAtReset && /Back to the center/.test(await page.locator("#message").textContent())) return;
+            assert.equal(Number(await page.locator(".desk-maze").getAttribute("data-position")), target);
+            from = target;
+          }
+        }
+        // Take an actual wrong branch: the required piece is treated as blocked,
+        // so a reachable nonmatching letter causes a genuine wrong-letter pickup.
+        let prefix = [];
+        let position = maze.start;
+        let wrongRoute;
+        for (const piece of maze.pickups) {
+          for (const later of maze.pickups.slice(piece.index + 1).filter(later => later.char.toUpperCase() !== piece.char.toUpperCase())) {
+            const path = R.mazePath(maze, position, later.cell, [piece.cell]);
+            if (path) { wrongRoute = path; break; }
+          }
+          if (wrongRoute) break;
+          prefix.push(...R.mazePath(maze, position, piece.cell));
+          position = piece.cell;
+        }
+        assert.ok(wrongRoute, "the maze should offer a consequential wrong turn");
+        await walk(prefix);
+        await walk(wrongRoute, true);
+        assert.match(await page.locator("#message").textContent(), /Back to the center/);
+        assert.equal(await page.locator(".desk-maze").getAttribute("data-position"), String(maze.start));
+        assert.equal(await page.locator(".desk-maze").getAttribute("data-collected"), "0");
+        assert.equal(await page.locator(".collected-piece").count(), 0);
+        assert.equal(await page.locator(".maze-piece").count(), maze.pickups.length);
+        assert.equal(layoutBefore, JSON.stringify(await readMaze()), "a reset must keep the same puzzle");
+        const alternative = maze.pickups.slice(1).find(piece => piece.char.toUpperCase() === maze.pickups[0].char.toUpperCase());
+        if (alternative) {
+          await walk(R.mazePath(maze, maze.start, alternative.cell));
+          assert.equal(await page.locator(".desk-maze").getAttribute("data-collected"), "1", "a later matching letter must count first");
+          assert.deepEqual(JSON.parse(await page.locator(".desk-maze").getAttribute("data-found")), [alternative.cell]);
+          await walk(R.mazePath(maze, alternative.cell, maze.start));
+          await walk(R.mazePath(maze, maze.start, alternative.cell));
+          assert.equal(await page.locator(".desk-maze").getAttribute("data-collected"), "1", "the same tile cannot be collected twice");
+          await page.locator("#restart-maze").click();
+        }
+        position = maze.start;
+        for (const piece of maze.pickups) {
+          await walk(R.mazePath(maze, position, piece.cell));
+          position = piece.cell;
+          assert.equal(await page.locator(".desk-maze").getAttribute("data-collected"), String(piece.index + 1));
+        }
+        assert.ok(longMoves > 0, "rook clicks must travel multiple cells");
+        assert.equal(await page.locator("#department-form [type=submit]").isDisabled(), false);
+        assert.equal(await page.locator(".desk-maze").getAttribute("data-position"), String(maze.pickups.at(-1).cell));
+        assert.equal(await page.locator(".desk-maze").getAttribute("data-exit"), null);
+        assert.equal(await page.locator("#maze-name").textContent(), name);
+        await submit();
+        await stage(10);
+        assert.equal(await page.locator(".progress [aria-current=step]").textContent(), "10Energy");
+        assert.match(await page.locator(".section-number").textContent(), /SUSTAINABILITY/);
+        await submit();
+        assert.match(await page.locator("#message").textContent(), /Nameplate incomplete/);
+        const power = R.makeNamePower(name, stageRandom("Energy"));
+        const circuits = R.powerSolution(power);
+        for (let i = 1; i <= 6; i++) await page.getByRole("button", { name: `Circuit ${i}`, exact: true }).click();
+        await submit();
+        assert.match(await page.locator("#message").textContent(), /allowance exceeded/);
+        for (let i = 1; i <= 6; i++) await page.getByRole("button", { name: `Circuit ${i}`, exact: true }).click();
+        for (const number of circuits) await page.getByRole("button", { name: `Circuit ${number}`, exact: true }).click();
+        assert.equal(await page.locator(".name-section.lit").count(), 6);
+        assert.equal(await page.locator(".name-section strong").allTextContents().then(parts => parts.join("")), name.replace(/ /g, ""));
+        const nameRows = await page.locator(".name-power-row").evaluateAll(rows => rows.map(row => ({
+          label: row.getAttribute("aria-label"),
+          text: [...row.querySelectorAll("strong")].map(node => node.textContent).join(""),
+          top: row.getBoundingClientRect().top,
+          slots: [...row.querySelectorAll(".name-section")].map(node => ({ text: node.querySelector("strong").textContent, top: node.getBoundingClientRect().top }))
+        })));
+        assert.deepEqual(nameRows.map(row => row.text), name.split(" "));
+        assert.deepEqual(nameRows.map(row => row.label), ["First name", "Last name"]);
+        assert.ok(nameRows[1].top > nameRows[0].top);
+        assert.ok(nameRows.every(row => row.slots.every(slot => slot.text.trim() && slot.top === row.top)), "each name must occupy a single row without blanks");
+        assert.equal(await page.locator("#power-count").textContent(), `6/6 sections lit\n${circuits.length}/${circuits.length} circuits used`);
+        await screenshot("power");
+        await submit();
+        await stage(11);
+        const start = await page.locator("#copy-value").getAttribute("data-order");
+        assert.equal(start, R.makeCopyPuzzle(name, stageRandom("Carbon")).start);
+        await page.getByRole("button", { name: "Mirror", exact: true }).click();
+        await page.locator("#copy-undo").click();
+        assert.equal(await page.locator("#copy-value").getAttribute("data-order"), start);
+        // Exhausting a wrong sequence must leave a working reset.
+        for (let i = 0; i < 4; i++) await page.getByRole("button", { name: "Mirror", exact: true }).click();
+        assert.equal(await page.getByRole("button", { name: "Mirror", exact: true }).isDisabled(), true);
+        await submit();
+        assert.match(await page.locator("#message").textContent(), /Copy mismatch/);
+        await page.locator("#copy-reset").click();
+        const operations = await page.evaluate(() => {
+          const { copySolution, copyOperations } = NameOffice.rules;
+          return copySolution(document.querySelector("#copy-value").dataset.order, document.querySelector("#copy-target").dataset.order).map(i => copyOperations[i].label);
+        });
+        for (const label of operations) await page.getByRole("button", { name: label, exact: true }).click();
+        assert.equal(await page.locator("#copy-value b").allTextContents().then(parts => parts.join("")), name.replace(/ /g, ""));
+        await screenshot("carbon");
+        await submit();
+        await stage(12);
+        assert.equal(await page.locator("#stage input").count(), 0, "approval must be a new puzzle, not a recap form");
+        await submit();
+        assert.match(await page.locator("#message").textContent(), /match every row and column count/);
+        const sealBoards = page.locator(".seal-board");
+        assert.equal(await sealBoards.count(), 2);
+        const puzzles = await sealBoards.evaluateAll(boards => boards.map(board => ({
+          width: Number(board.dataset.width), height: Number(board.dataset.height),
+          rows: JSON.parse(board.dataset.rows), columns: JSON.parse(board.dataset.columns), givens: JSON.parse(board.dataset.givens)
+        })));
+        const glyphs = R.sealInitials(name).map(R.sealGlyph);
+        if (glyphs.every(Boolean)) {
+          const random = stageRandom("Approval");
+          assert.deepEqual(puzzles.map(puzzle => puzzle.givens), glyphs.map(glyph => R.makeSealPuzzle(glyph, Math.floor(random() * 4294967296)).givens));
+        }
+        const solved = puzzles.map(puzzle => R.sealDeduction(puzzle));
+        assert.ok(solved.every(grid => grid && !grid.includes(null)));
+        const firstEditable = sealBoards.nth(0).locator(".seal-cell:not(:disabled)").first();
+        await page.locator("#seal-blank").click();
+        if (layout.touch) await firstEditable.tap(); else await firstEditable.click();
+        assert.equal(await firstEditable.getAttribute("data-state"), "blank");
+        await page.locator("#seal-undo").click();
+        assert.equal(await firstEditable.getAttribute("data-state"), "empty");
+        await page.locator("#seal-ink").click();
+        if (layout.touch) await firstEditable.tap();
+        else { await firstEditable.focus(); await page.keyboard.press("Space"); }
+        assert.equal(await firstEditable.getAttribute("data-state"), "ink");
+        await page.locator("#seal-reset").click();
+        assert.equal(await firstEditable.getAttribute("data-state"), "empty");
+        for (let i = 0; i < puzzles.length; i++) for (let cell = 0; cell < solved[i].length; cell++) {
+          if (solved[i][cell] !== 1 || puzzles[i].givens[cell] === 1) continue;
+          const tile = sealBoards.nth(i).locator(`.seal-cell[data-cell="${cell}"]`);
+          if (layout.touch) await tile.tap();
+          else { await tile.focus(); await page.keyboard.press("Space"); }
+        }
+        assert.equal(await page.locator("#message").textContent(), "Seal ready. Stamp your approval.");
+        assert.equal(await page.locator(".seal-row-clue:not(.satisfied), .seal-column-clue:not(.satisfied)").count(), 0);
+        assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+        await screenshot("approval");
+        await page.clock.setFixedTime(queueTestTime + R.queueDurationMs - 1);
+        await submit();
+        assert.equal(await page.locator("#stage-title").textContent(), "You have a name.");
+        assert.equal(await page.locator(".certificate-name").textContent(), name);
+        assert.equal(await page.locator("#completion-time").textContent(), "7:59.999");
+        assert.equal(await page.locator("#assistance-summary").textContent(), `Assistance used: ${assistanceCount} times`);
+        assert.equal(await page.locator("#receipt-count").textContent(), "12 filed / case closed");
+        assert.equal(await page.locator("#receipt-cleared").textContent(), "Approval: Approval seal stamped.");
+        assert.equal(await page.locator("#receipt-hold-label").textContent(), "DISPOSITION");
+        assert.equal(await page.locator("#receipt-hold").textContent(), "Case closed. You may leave.");
+        assert.equal(await page.locator("#hint-button").isVisible(), false);
+        assert.equal(await page.locator("#office-note-title").textContent(), "One final scrap");
+        assert.equal(await page.locator(".progress li").count(), 4);
+        assert.equal(await page.locator(".personal-seal svg rect").count(), solved.flat().filter(Boolean).length, "the finished certificate must carry the player's seal");
+        const securedServing = await page.locator("#now-serving").textContent();
+        assert.equal(Number(queueNumber) - Number(securedServing), 1, "paperwork filed one millisecond before the deadline must succeed");
+        await page.clock.setFixedTime(queueTestTime + R.queueDurationMs + 60000);
+        await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+        assert.equal(await page.locator("#now-serving").textContent(), securedServing, "completion freezes the queue");
+        assert.equal(await page.locator("#completion-time").textContent(), "7:59.999", "the speedrun result must remain frozen after completion");
+        assert.equal(await page.locator("body").getAttribute("data-queue-phase"), "complete");
+        await screenshot("complete");
+        await page.locator("#another-button").click();
+        assert.notEqual(await page.locator("body").getAttribute("data-run-seed"), runCode, "a new application gets a new seed");
+        assert.equal(await page.locator("#office-note-title").textContent(), "Before you begin");
+        assert.equal(await page.locator("#completion-time").count(), 0, "a new application must not display the old run's time");
+        assert.equal(await page.locator("#assistance-summary").count(), 0);
+        assert.equal(await page.locator("#office-note-estimate").isVisible(), true);
+        assert.ok(Number(await page.locator("#queue-number").textContent()) >= 100);
+        assert.equal(await page.locator("#receipt-name").textContent(), "Undetermined");
+        assert.deepEqual(await page.locator(".progress li span").allTextContents(), ["01", "02", "03", "04"]);
+        await page.locator("#name-input").fill("Spare Name");
+        await submit();
+        await page.locator("#reset-button").click();
+        assert.equal(await page.locator("#receipt-name").textContent(), "Undetermined");
+        assert.equal(await page.locator("#name-input").inputValue(), "");
+        assert.equal(await page.locator("#receipt-cleared").textContent(), "Nothing filed yet.");
+        assert.equal(await page.locator("#receipt-hold").textContent(), "Intake: Name required.");
+        assert.deepEqual(network, [], "the game must make no network requests");
+        assert.deepEqual(errors, [], "the game must have no runtime errors");
+      } finally {
+        await browser.close();
+      }
+    });
+  }
+}
+
+for (const engine of engines) {
+  if (!process.argv.includes("--queue-only")) test(`${engine}: run links replay puzzles and new applications receive fresh seeds`, { timeout: 30000 }, async () => {
+    const browser = await playwright[engine].launch({ headless: true });
+    try {
+      const page = await browser.newPage({ reducedMotion: "reduce" });
+      const errors = [];
+      page.on("pageerror", error => errors.push(error.message));
+      await page.goto(`${url}#seed=00000000`);
+      assert.equal(await page.locator("body").getAttribute("data-run-seed"), "00000000");
+      await page.goto(`${url}#seed=deadbeef`);
+      await page.waitForFunction(() => document.body.dataset.runSeed === "DEADBEEF");
+      const replayUrl = page.url();
+      assert.equal(new URL(replayUrl).hash, "#seed=DEADBEEF");
+      const ticket = await page.locator("#queue-number").textContent();
+      const reachEvidence = async assistance => {
+        if (assistance) await page.locator("#hint-button").click();
+        for (const value of ["Lady Soup", "LADY SOUP", "Ldy Sp"]) {
+          await page.locator("#name-input").fill(value);
+          await page.locator("[type=submit]").click();
+        }
+        if (assistance) {
+          await page.locator("#hint-button").click();
+          await page.evaluate(() => { for (let i = 0; i < 100; i++) Math.random(); });
+        }
+        return page.evaluate(() => ({
+          tiles: [...document.querySelectorAll(".name-tile")].map(node => node.textContent),
+          paper: document.querySelector(".office-note").getAttribute("style")
+        }));
+      };
+      const original = await reachEvidence(false);
+      await page.goto(replayUrl);
+      await page.reload();
+      assert.equal(await page.locator("#queue-number").textContent(), ticket);
+      assert.deepEqual(await reachEvidence(true), original, "same URL and name must reproduce the puzzle despite assistance or unrelated randomness");
+      await page.locator(".skip-link").evaluate(node => node.click());
+      await page.waitForFunction(() => location.hash === "#seed=DEADBEEF");
+      assert.equal(await page.locator("#stage-title").textContent(), "Identify yourself. Three times.", "in-page navigation must keep the current puzzle and seed");
+      await page.locator("#reset-button").click();
+      const freshCode = await page.locator("body").getAttribute("data-run-seed");
+      assert.notEqual(freshCode, "DEADBEEF");
+      assert.equal(new URL(page.url()).hash, `#seed=${freshCode}`);
+      await page.reload();
+      assert.equal(await page.locator("body").getAttribute("data-run-seed"), freshCode, "reload must replay the seed in the URL");
+      await page.goto(`${url}#seed=invalid`);
+      await page.waitForFunction(() => /^[0-9A-F]{8}$/.test(location.hash.slice(6)));
+      assert.match(await page.locator("body").getAttribute("data-run-seed"), /^[0-9A-F]{8}$/);
+      assert.deepEqual(errors, []);
+    } finally { await browser.close(); }
+  });
+
+  if (!seedOnly) test(`${engine}: queue deadlines, escalation, background catch-up and restart`, { timeout: 45000 }, async () => {
+    const browser = await playwright[engine].launch({ headless: true });
+    try {
+      const page = await browser.newPage({ viewport: { width: engine === "chromium" ? 375 : 1280, height: 900 }, reducedMotion: "reduce" });
+      const errors = [];
+      page.on("pageerror", error => errors.push(error.message));
+      await page.clock.install({ time: queueTestTime });
+      await page.goto(url);
+      await page.clock.pauseAt(queueTestTime + 60000);
+      const phase = () => page.locator("body").getAttribute("data-queue-phase");
+      const nowServing = async () => Number(await page.locator("#now-serving").textContent());
+      const ticket = Number(await page.locator("#queue-number").textContent());
+      const original = await nowServing();
+      assert.equal(ticket - original, 48);
+      await page.clock.fastForward(600000);
+      assert.equal(await phase(), "waiting", "opening instructions do not consume the deadline");
+      assert.equal(await nowServing(), original);
+      await page.locator("#hint-button").click(); // Intake assistance belongs to this application too.
+      await page.locator("#name-input").fill("Lady Soup Junior");
+      await page.locator("[type=submit]").click();
+      assert.equal(await phase(), "waiting", "invalid intake does not start the queue");
+      await page.locator("#name-input").fill("Lady Soup");
+      await page.locator("[type=submit]").click();
+      assert.equal(await phase(), "normal");
+      await page.locator("#hint-button").click();
+      await page.locator("#hint-button").click();
+      await page.clock.fastForward(9999);
+      assert.equal(await nowServing(), original);
+      await page.clock.fastForward(1);
+      assert.equal(await nowServing(), original + 1);
+      await page.locator("#department-form").evaluate(form => { form.style.minHeight = "1500px"; });
+      await page.locator("footer").scrollIntoViewIfNeeded();
+      await page.locator("#queue-ticker").waitFor({ state: "visible" });
+      assert.equal(await page.locator("#queue-ticker").isVisible(), true);
+      await page.locator("#department-form").evaluate(form => { form.style.minHeight = ""; });
+      await page.clock.fastForward(350000);
+      assert.equal(await phase(), "warning");
+      assert.equal(ticket - await nowServing(), 12);
+      assert.match(await page.locator("#queue-announcement").textContent(), /Two minutes/);
+      await page.locator("#name-input").fill("LADY SOUP");
+      await page.locator("[type=submit]").click();
+      assert.equal(await phase(), "warning", "clearing a department must not restart the deadline");
+      assert.equal(ticket - await nowServing(), 12);
+      const receipt = await page.locator("#receipt-comment").textContent();
+      await page.clock.fastForward(60000);
+      assert.equal(await phase(), "urgent");
+      assert.equal(ticket - await nowServing(), 6);
+      assert.equal(await page.locator("#receipt-comment").textContent(), receipt, "queue warnings must not change paperwork records");
+      await page.clock.fastForward(30000);
+      assert.equal(await phase(), "critical");
+      assert.equal(ticket - await nowServing(), 3);
+      await page.emulateMedia({ reducedMotion: "no-preference" });
+      assert.equal(await page.locator(".queue-screen").evaluate(node => getComputedStyle(node).animationName), "queue-pulse");
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      assert.equal(await page.locator(".queue-screen").evaluate(node => getComputedStyle(node).animationName), "none", "urgency respects reduced motion");
+      if (screenshotDirectory) await page.screenshot({ path: resolve(screenshotDirectory, `name-office-${engine}-queue-critical.png`), fullPage: true });
+      await page.clock.fastForward(20000);
+      assert.equal(ticket - await nowServing(), 1);
+      assert.equal(await page.locator(".queue-footer").textContent(), "YOUR NUMBER IS NEXT.");
+      await page.clock.fastForward(10000);
+      assert.equal(await phase(), "missed");
+      assert.equal(await nowServing(), ticket);
+      assert.equal(await page.locator("#stage-title").textContent(), "You missed your turn.");
+      assert.equal(await page.locator("#department-form").count(), 0);
+      assert.equal(await page.locator(".progress").isVisible(), true);
+      assert.equal(await page.locator(".certificate-missed").count(), 1);
+      assert.equal(await page.locator("#missed-number").textContent(), String(ticket));
+      assert.equal(await page.locator("#missed-forms").textContent(), "2");
+      assert.equal(await page.locator("#missed-window").textContent(), "8:00");
+      assert.equal(await page.locator("#assistance-summary").textContent(), "Assistance used: 3 times");
+      const outcomeLayout = await page.locator(".certificate-missed").evaluate(certificate => {
+        const stamp = certificate.querySelector(".outcome-stamp");
+        const button = certificate.querySelector("#missed-restart");
+        const center = element => { const rect = element.getBoundingClientRect(); return rect.left + rect.width / 2; };
+        const style = getComputedStyle(stamp);
+        return {
+          stampOffset: Math.abs(center(stamp) - center(certificate)),
+          buttonOffset: Math.abs(center(button) - center(certificate)),
+          margins: [style.marginTop, style.marginBottom],
+          resultBetween: stamp.getBoundingClientRect().bottom < certificate.querySelector(".run-result").getBoundingClientRect().top
+            && certificate.querySelector(".run-result").getBoundingClientRect().bottom < button.getBoundingClientRect().top
+        };
+      });
+      assert.ok(outcomeLayout.stampOffset < 1 && outcomeLayout.buttonOffset < 1, "the missed stamp and restart button must both be centered");
+      assert.deepEqual(outcomeLayout.margins, ["7px", "20px"], "failure must retain the approved stamp's tuned spacing");
+      assert.equal(outcomeLayout.resultBetween, true, "the time window must separate the missed stamp from the restart button");
+      assert.equal(await page.locator("#message").textContent(), "", "the rejection notice is self-contained");
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+      assert.equal(await page.locator("#hint-button").isVisible(), false);
+      assert.equal(await page.locator("#queue-ticker").isVisible(), false);
+      assert.equal(await page.locator("#receipt-hold").textContent(), "Turn missed. New ticket required.");
+      if (screenshotDirectory) await page.screenshot({ path: resolve(screenshotDirectory, `name-office-${engine}-queue-missed.png`), fullPage: true });
+      await page.locator("#missed-restart").click();
+      const fresh = Number(await page.locator("#queue-number").textContent());
+      assert.equal(fresh - await nowServing(), 48);
+      assert.equal(await page.locator(".progress").isVisible(), true);
+      assert.equal(await phase(), "waiting");
+      assert.equal(await page.locator("#receipt-name").textContent(), "Undetermined");
+      assert.equal(await page.locator("#receipt-count").textContent(), "0 filed");
+      assert.equal(await page.locator("#name-input").inputValue(), "");
+      await page.clock.fastForward(600000);
+      assert.equal(await phase(), "waiting");
+      await page.locator("#name-input").fill("Lady Soup");
+      await page.locator("[type=submit]").click();
+      const began = await page.evaluate(() => Date.now());
+      // No timer callback is run: the submission itself must reject a late form.
+      await page.clock.setFixedTime(began + R.queueDurationMs);
+      await page.locator("#name-input").fill("LADY SOUP");
+      await page.locator("[type=submit]").click();
+      assert.equal(await phase(), "missed");
+      assert.equal(await page.locator("#assistance-summary").textContent(), "Assistance used: 0 times", "a new application must clear the previous assistance count");
+      await page.locator("#missed-restart").click();
+      await page.locator("#hint-button").click();
+      await page.locator("#name-input").fill("Lady Soup");
+      await page.locator("[type=submit]").click();
+      const restarted = await page.evaluate(() => Date.now());
+      await page.clock.setFixedTime(restarted + 20 * 60000);
+      await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+      assert.equal(await phase(), "missed", "returning after a long background gap expires the application immediately");
+      assert.equal(await page.locator("#assistance-summary").textContent(), "Assistance used: 1 time");
+      assert.deepEqual(errors, []);
+    } finally { await browser.close(); }
+  });
+}
