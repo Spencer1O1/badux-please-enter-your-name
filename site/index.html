@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#f3f0e5">
   <title>Please enter your name. | Department of Name Acquisition</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./style.css?v=20261028-intro-alignment-2">
+  <link rel="stylesheet" href="./style.css?v=20261028-queue-size-1">
   <link rel="stylesheet" href="./puzzles.css?v=20261028-feedback-1">
   <script src="./rules.js?v=20261028-seeded-2" defer></script>
   <script src="./departments.js?v=20261028-copy-cleanup-1" defer></script>
@@ -24,15 +24,15 @@
     <div class="office-status"><span aria-hidden="true">●</span> OPEN, RELUCTANTLY <small>Your patience is our renewable
         resource.</small></div>
   </header>
-  <div class="queue-ticker" id="queue-ticker" hidden aria-hidden="true"><span>NOW <strong
-        id="ticker-serving">—</strong></span><span>YOUR <strong id="ticker-number">—</strong></span><span
+  <div class="queue-ticker" id="queue-ticker" hidden aria-hidden="true"><span>YOUR <strong
+        id="ticker-number">—</strong></span><span>NOW <strong id="ticker-serving">—</strong></span><span
       id="ticker-ahead"></span></div>
   <span id="queue-announcement" class="queue-announcement" role="status" aria-live="polite" aria-atomic="true"></span>
   <main>
     <section class="intro" aria-labelledby="title">
       <div>
         <p class="eyebrow">IDENTITY SERVICES / NONESSENTIAL DIVISION</p>
-        <h1 id="title">Please enter your <em>name.</em><span class="title-star" aria-hidden="true">✳</span></h1>
+        <h1 id="title">Please enter your <span class="title-ending"><em>name.</em><span class="title-star" aria-hidden="true">✳</span></span></h1>
       </div>
       <div class="intro-aside"><span class="label-tag">A SIMPLE REQUEST™</span>
         <p>Your name is just the beginning.<br>The paperwork has other plans.</p>
@@ -41,8 +41,8 @@
     </section>
     <div class="workspace">
       <aside class="queue" aria-label="Office queue">
-        <div class="queue-screen"><span class="micro">NOW SERVING</span><strong id="now-serving">—</strong><span
-            class="queue-divider"></span><span class="micro">YOUR NUMBER</span><b id="queue-number">—</b><span
+        <div class="queue-screen"><span class="micro">YOUR NUMBER</span><b id="queue-number">—</b><span
+            class="queue-divider"></span><span class="micro">NOW SERVING</span><strong id="now-serving">—</strong><span
             class="micro queue-footer">48 AHEAD</span></div>
       </aside>
       <aside class="office-note" aria-labelledby="office-note-title"><span class="paperclip" aria-hidden="true"></span>
