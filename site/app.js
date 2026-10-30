@@ -14,6 +14,8 @@
   let queueSignal = "";
   let activeDepartment;
   let ticketRevealTimer = null;
+  let outcomeTimer = null;
+  let outcomeServing = null;
   const ticketDialog = document.querySelector("#ticket-dialog");
   NameOffice.sharing.mountReferral(document);
 
@@ -51,6 +53,7 @@
   }
 
   function renderQueue(snapshot) {
+    if (outcomeServing !== null) snapshot = { ...snapshot, serving: outcomeServing, ahead: state.queue.number - outcomeServing };
     const complete = state.current === departments.length;
     const phase = state.lost ? "missed" : complete ? "complete" : snapshot.phase;
     updateTickerVisibility();
@@ -66,14 +69,13 @@
     document.querySelector("#ticker-number").textContent = String(state.queue.number).padStart(3, "0");
     document.querySelector("#ticker-ahead").textContent = snapshot.ahead === 1 ? "YOU’RE NEXT" : `${snapshot.ahead} AHEAD`;
     const footer = phase === "waiting" ? ""
-      : phase === "complete" ? "PAPERWORK READY. TURN SECURED."
+      : phase === "complete" ? "PAPERWORK COMPLETE. TICKET ACCEPTED."
         : phase === "missed" ? "YOUR TURN. YOUR PAPERS?"
           : snapshot.ahead === 1 ? "YOUR NUMBER IS NEXT."
             : phase === "critical" ? `${snapshot.ahead} AHEAD. HAVE PAPERS READY.`
               : phase === "urgent" ? `${snapshot.ahead} AHEAD. ALMOST YOUR TURN.`
                 : phase === "warning" ? `${snapshot.ahead} AHEAD. KEEP FILING.` : `${snapshot.ahead} TICKETS AHEAD`;
     document.querySelector(".queue-footer").textContent = footer;
-    document.querySelector(".queue-footer").hidden = phase === "waiting";
     const signal = phase === "critical" && snapshot.ahead === 1 ? "next" : phase;
     if (signal !== queueSignal) {
       queueSignal = signal;
@@ -109,12 +111,49 @@
     renderProgress(false);
     renderReceipt(false);
     renderOffice(false);
-    renderQueue(R.queueStatus(state.queue, state.startedAt, now));
-    renderOutcome(false);
-    const title = stage.querySelector("#stage-title");
-    title.focus({ preventScroll: true });
-    title.scrollIntoView({ block: "start" });
+    presentOutcome(false);
     announce("");
+  }
+
+  function presentOutcome(complete) {
+    // The real result is already frozen. Only the displayed counter fast-forwards.
+    const from = Math.min(Number(document.querySelector("#now-serving").textContent), state.queue.number - 1);
+    outcomeServing = from;
+    renderOutcome(complete);
+    const snapshot = R.queueStatus(state.queue, state.startedAt, state.finishedAt);
+    const finish = () => {
+      outcomeTimer = null;
+      outcomeServing = state.queue.number;
+      renderQueue(snapshot);
+      document.body.classList.remove("ticket-present", "outcome-focus", "outcome-called");
+      document.querySelector("main").inert = false;
+      document.querySelector(".masthead").inert = false;
+      const title = stage.querySelector("#stage-title");
+      title.focus({ preventScroll: true });
+      title.scrollIntoView({ block: "start", behavior: "instant" });
+    };
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) { finish(); return; }
+    document.body.classList.add("ticket-present", "outcome-focus");
+    document.querySelector("main").inert = true;
+    document.querySelector(".masthead").inert = true;
+    document.activeElement?.blur();
+    renderQueue(snapshot);
+    document.querySelector(".queue").scrollIntoView({ block: "center", behavior: "instant" });
+    const steps = state.queue.number - from;
+    const tick = () => {
+      outcomeServing++;
+      renderQueue(snapshot);
+      if (outcomeServing === state.queue.number) {
+        document.body.classList.add("outcome-called");
+        document.querySelector("#queue-announcement").textContent = "Your number is called.";
+        // Let the one-second pulse finish, then hold the called number briefly.
+        outcomeTimer = setTimeout(finish, 1600);
+      } else {
+        const progress = (outcomeServing - from) / steps;
+        outcomeTimer = setTimeout(tick, 70 + 290 * (1 - progress) ** 2);
+      }
+    };
+    outcomeTimer = setTimeout(tick, 450);
   }
 
   function renderOffice(complete) {
@@ -180,7 +219,7 @@
       <h2 class="stage-title" id="stage-title" tabindex="-1">${complete ? "Your name is official." : "You missed your turn."}</h2>
       <p class="certificate-line">${complete ? "THIS CERTIFIES THAT" : "THIS OFFICE CONFIRMS THAT"}</p><p class="certificate-name applicant-name"></p>
       <p class="certificate-line">${complete ? "HAS OFFICIALLY ACQUIRED A NAME." : "WAS CALLED AS TICKET <span id='missed-number'></span><br>WITHOUT THE REQUIRED PAPERWORK."}</p>
-      <div class="outcome-stamp ${complete ? "approved-stamp" : "missed-stamp"}">${complete ? "APPROVED<small>YES. REALLY. YOU CAN GO.</small>" : "MISSED<small>NO. REALLY. START AGAIN.</small>"}</div>
+      <div class="outcome-stamp ${complete ? "approved-stamp" : "missed-stamp"}">${complete ? "APPROVED<small>YES. REALLY. YOU CAN GO.</small>" : "DENIED<small>NO. REALLY. START AGAIN.</small>"}</div>
       <p class="stage-description">${complete ? "Twelve departments. One official name. Zero practical benefit.<br>Your vowels have been returned. Your time has not.<br>The certificate is valid until you stop looking at it." : "Your paperwork wasn’t ready.<br>Filed <span id='missed-forms'></span> <span id='missed-form-label'></span>. Application void.<br>No extensions. Naturally."}</p>
       <div class="run-result"><span class="micro">${complete ? "COMPLETION TIME" : "DEPARTMENT REACHED"}</span><output id="${complete ? "completion-time" : "missed-department"}"></output><small>${complete ? "From first department to final approval." : "New ticket. All paperwork starts over."}</small><small id="assistance-summary"></small></div>
       <div class="action-row"><button class="primary-button" id="${complete ? "another-button" : "missed-restart"}" type="button">${complete ? "Acquire another name" : "Take a new ticket"} <span class="button-arrow" aria-hidden="true">↺</span></button></div>
@@ -234,7 +273,7 @@
     renderOffice(complete);
     if (!updateQueue()) return;
     announce("");
-    if (complete) renderOutcome(true);
+    if (complete) { presentOutcome(true); return; }
     else {
       const department = departments[state.current];
       // Only authored templates enter HTML. All applicant text uses textContent.
@@ -314,14 +353,17 @@
     showStage({ shifted: state.current >= 4 && !complete });
     if (state.lost) return;
     announce(complete ? `${approval} You may leave.`
-      : `${approval} ${state.current === 4 ? "Additional department" : "Referred to"}: ${departments[state.current].label}.`);
+      : `${approval} Take this to ${departments[state.current].label}.`);
   }
 
   function clearTicketPresentation() {
+    if (outcomeTimer !== null) clearTimeout(outcomeTimer);
+    outcomeTimer = null;
+    outcomeServing = null;
     if (ticketRevealTimer !== null) clearTimeout(ticketRevealTimer);
     ticketRevealTimer = null;
     ticketDialog.close();
-    document.body.classList.remove("ticket-present", "ticket-reveal");
+    document.body.classList.remove("ticket-present", "ticket-reveal", "outcome-focus", "outcome-called");
     document.querySelector("main").inert = false;
     document.querySelector(".masthead").inert = false;
   }
@@ -380,7 +422,7 @@
     state.queue = R.issueQueueTicket(R.createRandom(state.seed, "", "Queue"));
     recordRunSeed();
     showStage();
-    announce("Application shredded. Take another number.");
+    announce("Application shredded. Start again at Intake.");
   }
 
   function reset() {

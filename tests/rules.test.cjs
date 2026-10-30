@@ -142,6 +142,9 @@ test("customs accepts keeping or removing Y without enforcing capitalization", (
   assert.equal(R.acceptsCustoms("Yves Yonder", "vs ndr"), true);
   assert.equal(R.acceptsCustoms("Yaya Yoyo", "NONE"), true);
   assert.equal(R.acceptsCustoms("Aei Oua", "none"), true);
+  assert.equal(R.acceptsCustoms("Aei Oua", ""), true);
+  assert.equal(R.acceptsCustoms("Yaya Yoyo", ""), true);
+  assert.equal(R.acceptsCustoms("Yaya Yoyo", "  "), true);
   assert.equal(R.acceptsCustoms("Élodie Soup", "éld sp"), true);
   for (const answer of ["Lady Soup", "LdyY Sp", "LdZ Sp", "Ldy S", ""]) {
     assert.equal(R.acceptsCustoms("Lady Soup", answer), false, answer);

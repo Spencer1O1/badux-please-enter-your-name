@@ -51,7 +51,7 @@
   const departments = [
     {
       id: "Intake", label: "Intake", title: "Let's get started.",
-      paperwork: { hold: "Name required.", approval: "Name chosen." },
+      paperwork: { hold: "Applicant name required.", approval: "Applicant name recorded." },
       description: "Enter your name, first and last. 6–20 letters total.",
       body: input("Your entirely fictional name", "name-input", "e.g. Dr. Doofenshmirtz"),
       action: "Begin paperwork", footnoteLabel: "NO ID REQUIRED", footnote: "(We wouldn't know what to do with it)",
@@ -64,7 +64,7 @@
     {
       instructionClerk: false,
       id: "Check-In", label: "Check-In", title: "The clerk is a little far away.",
-      paperwork: { hold: "Capitalized copy required.", approval: "Capitalized copy accepted." },
+      paperwork: { hold: "Applicant check-in required.", approval: "Applicant checked in." },
       description: "Yell your name so he can hear you.",
       body: reference + `<div class="distant-office" aria-hidden="true"><svg class="office-perspective" viewBox="0 0 600 112" preserveAspectRatio="none" fill="none"><path class="office-back-wall" d="M240 12H360V78H240Z"/><path d="M0 0L240 12M600 0L360 12M0 112L240 78M600 112L360 78M0 78H600M0 103H600M113 94H487M192 85H408M130 112L266 78M470 112L334 78"/></svg><div class="distant-window"><span class="distant-window-number">02</span><span class="distant-clerk"></span><span class="distant-counter"></span></div></div>` + input("Your name, but louder", "name-input", "ALL CAPS"),
       action: "Check in", footnote: "Capitalization is a leadership skill.",
@@ -81,17 +81,17 @@
       id: "Customs", label: "Customs", title: "Vowels cannot cross.",
       paperwork: { hold: "Vowel clearance required.", approval: "Vowel clearance granted." },
       description: "Remove all the vowels from your name... 'Y' has diplomatic immunity.",
-      body: reference + input("Your name, duty-free", "name-input", "Leave the vowels behind.") + `<p class="tiles-caption">If empty, enter NONE.</p>`,
+      body: reference + input("Your name, duty-free", "name-input", "Leave the vowels behind."),
       action: "Clear customs", footnote: "Your vowels will be returned. Probably.",
       note: { text: "They took my vowels. I can still remember my childhood, but I can no longer pronounce it.", author: "Applicant 582, partially released" },
       mount: ({ root, applicant }) => ({
         validate: () => R.acceptsCustoms(applicant, readName(root)) ? "" : "Remove the vowels from your name.",
-        hint: () => "Try: " + R.customs(applicant)
+        hint: () => R.customs(applicant) === "NONE" ? "Leave the field blank." : "Try: " + R.customs(applicant)
       })
     },
     {
       id: "Evidence", label: "Verification", title: "Identify yourself. Three times.",
-      paperwork: { hold: "Three exact copies required.", approval: "Identity evidence verified." },
+      paperwork: { hold: "Three matching copies required.", approval: "Name verified against three copies." },
       description: "We need three exact copies of your name.",
       body: reference + `<div class="tile-grid" role="group" aria-label="Name recognition tiles" aria-describedby="instructions tile-count"></div><p class="tiles-caption" id="tile-count" aria-live="polite"></p>`,
       action: "Verify my name", footnote: "Three copies ought to settle this.",
@@ -122,7 +122,7 @@
     },
     {
       id: "Recovery", label: "Restoration", title: "The office shredder found your name.",
-      paperwork: { hold: "Shredded name must be restored.", approval: "Document fragments restored." },
+      paperwork: { hold: "Shredded application awaiting repair.", approval: "Application restored." },
       description: "I can't believe they put your name through the shredder. Don't worry, we'll fix it.",
       body: reference + output("recovered-name", "RECOVERED SO FAR") + `<div class="letter-spill" role="group" aria-label="Scattered letters"></div><div class="tool-row"><button class="text-button" type="button" id="undo-letter">Put last letter back ↶</button><button class="text-button" type="button" id="clear-letters">Drop everything ↺</button></div>`,
       action: "Restore my application", footnote: "Some reassembly required.",
@@ -152,7 +152,7 @@
             if (correct) picked.push(index);
             else picked.length = 0;
             update();
-            announce(correct ? value() === target ? "Name recovered." : "" : "Collect your name's letters in order.", correct ? "" : "error");
+            announce(correct ? value() === target ? "Application restored." : "" : "Collect your name's letters in order.", correct ? "" : "error");
             (buttons.find(node => !node.hidden) || root.querySelector("[type=submit]")).focus({ preventScroll: true });
           });
           buttons.push(piece);
@@ -164,13 +164,13 @@
         update();
         return {
           validate: () => value() === target ? "" : "Keep collecting your name’s letters.",
-          hint: () => value() === target ? "Name recovered." : `Next: “${chars[picked.length]}”.`
+          hint: () => value() === target ? "Application restored." : `Next: “${chars[picked.length]}”.`
         };
       }
     },
     {
       id: "Secrecy", label: "Security", title: "Your file is locked.",
-      paperwork: { hold: "Confidential file must be decrypted.", approval: "Confidential file unlocked." },
+      paperwork: { hold: "Confidential file awaiting decryption.", approval: "Confidential file decrypted." },
       description: "Decrypt your file to attach it to your paperwork.",
       body: reference + `<div class="file-lock"><span class="micro">CONFIDENTIAL / APPLICANT ACCESS ONLY</span><div class="lock-wheels" role="group" aria-label="Four-digit combination lock"></div><div class="file-assessment"><span class="micro">INTERNAL ASSESSMENT</span><ol class="assessment-lines" aria-live="polite" aria-label="Confidential assessment"></ol></div></div>`,
       action: "Unlock my file", footnote: "Your identity is classified. From you.",
@@ -250,7 +250,7 @@
     },
     {
       id: "Stamps", label: "Certification", title: "The clerk has mixed up the stamps.",
-      paperwork: { hold: "Stamped form required.", approval: "Stamped form filed." },
+      paperwork: { hold: "Name awaiting certification.", approval: "Name stamped and certified." },
       description: "Could you help me stamp your name?",
       body: reference + output("stamped-name", "STAMPED SO FAR") + `<div class="stamp-tray" role="group" aria-label="Name stamps"></div><p class="tiles-caption" id="stamp-next" aria-live="polite"></p>`,
       action: "Certify my form", footnote: "Ink is a renewable inconvenience.",
@@ -318,7 +318,7 @@
     {
       instructionClerk: false,
       id: "Archive", label: "Archives", title: "We’ve misfiled your application.",
-      paperwork: { hold: "Misfiled application must be found.", approval: ({ archive }) => `Application file ${archive.number} retrieved.` },
+      paperwork: { hold: "Misfiled application awaiting retrieval.", approval: ({ archive }) => `Application file ${archive.number} retrieved.` },
       description: "One of the clerks is mistaken. Given the files below, who is it?",
       body: `<div class="archive-puzzle">` + reference + `<div class="name-index" aria-label="Numbered name letters, spaces omitted"></div><div class="archive-review"><p class="archive-step"><b>1</b> Mark who is wrong</p><div class="archive-clerks" role="group" aria-label="Clerk statements"></div></div><p class="archive-step"><b>2</b> Choose your file</p><output class="archive-context" id="archive-context" aria-live="polite">No file selected</output><div class="archive-files" role="group" aria-label="Archive files"></div></div>`,
       action: "Retrieve my file", footnote: "Filed under somebody else, probably.",
@@ -437,7 +437,7 @@
     },
     {
       id: "Transit", label: "Routing", title: "Your name has been scattered.",
-      paperwork: { hold: "Name routing incomplete.", approval: "Name delivered." },
+      paperwork: { hold: "First name awaiting retrieval.", approval: "First name retrieved." },
       description: "Sorry... here's a floorplan to retrieve your name.",
       body: `<div class="reference-name"><small>FIRST NAME</small><span id="maze-target"></span></div>` + output("maze-name", "NAME RECOVERED") + `<p class="stamp-passport" id="maze-next" aria-live="polite"></p><div class="maze-viewport"><div class="desk-maze" tabindex="0" role="group" aria-label="Name maze, fifteen rows of fifteen. Press or drag through green squares, or use arrow keys to the next junction." aria-describedby="maze-next maze-controls"></div></div><p class="tiles-caption" id="maze-controls">Press or drag through green squares. Arrows / WASD.</p><button class="text-button" id="restart-maze" type="button">Start over ↺</button>`,
       action: "Confirm my route", footnote: "The floor plan is legally a filing system.",
@@ -469,7 +469,7 @@
           submit.disabled = state.collected !== maze.pickups.length;
           text(root, "#maze-name", maze.pickups.slice(0, state.collected).map(piece => piece.char).join("") || "…");
           const next = maze.pickups[state.collected];
-          text(root, "#maze-next", next ? `${state.collected} / ${maze.pickups.length} recovered. Next: “${glyph(next.char)}”.` : "Name recovered.");
+          text(root, "#maze-next", next ? `${state.collected} / ${maze.pickups.length} recovered. Next: “${glyph(next.char)}”.` : "First name retrieved.");
           cells.forEach((node, i) => {
             node.classList.remove("hinted-cell");
             const piece = pieces.get(i);
@@ -494,7 +494,7 @@
           }
           if (state.kind === "wrong") announce("Collect your first name in order.", "error");
           else if (state.kind === "blocked") announce("Choose a clear row or column.", "error");
-          else if (state.kind === "complete") announce("Name recovered.");
+          else if (state.kind === "complete") announce("First name retrieved.");
           else announce("");
           update();
           if (state.kind === "complete") submit.focus({ preventScroll: true });
@@ -598,14 +598,14 @@
           state = { position: maze.start, collected: 0, found: [] };
           facing = "up";
           update();
-          announce("Maze reset.");
+          announce("Back to the start of your route.");
         });
         update();
         return {
-          validate: () => state.collected === maze.pickups.length ? "" : "Collect every piece in order.",
+          validate: () => state.collected === maze.pickups.length ? "" : "Retrieve your first name in order.",
           hint: () => {
             const next = maze.pickups[state.collected];
-            if (!next) return "Name recovered.";
+            if (!next) return "First name retrieved.";
             const path = maze.pickups.filter(piece => !state.found.includes(piece.cell) && piece.char.toUpperCase() === next.char.toUpperCase())
               .map(piece => R.mazePath(maze, state.position, piece.cell)).sort((a, b) => a.length - b.length)[0];
             let target = path[0];
@@ -623,7 +623,7 @@
     },
     {
       id: "Energy", label: "Electrical", title: "Your nameplate needs power.",
-      paperwork: { hold: "Nameplate power clearance required.", approval: "Nameplate power cleared." },
+      paperwork: { hold: "Nameplate awaiting power clearance.", approval: "Nameplate power approved." },
       description: "Light your entire nameplate using exactly three circuits.",
       body: reference + `<div class="power-panel"><div class="power-panel-header"><span class="micro">NAMEPLATE / POWER SUPPLY</span><div class="power-budget" aria-hidden="true"><i></i><i></i><i></i></div></div><svg class="power-wires" aria-hidden="true" focusable="false"></svg><div class="switchboard switchboard-top" role="group" aria-label="Circuits 1 to 3"></div><div class="name-power" role="group" aria-label="First and last name on separate rows"></div><div class="switchboard switchboard-bottom" role="group" aria-label="Circuits 4 to 6"></div></div>`,
       action: "Request power clearance", footnote: "Existence requires a working connection.",
@@ -710,7 +710,7 @@
             else return;
             node.setAttribute("aria-pressed", String(on.has(i + 1)));
             update();
-            announce(on.size === allowance && R.powerState(puzzle, on) === puzzle.target ? "Nameplate compliant. Request your permit." : "");
+            announce(on.size === allowance && R.powerState(puzzle, on) === puzzle.target ? "Nameplate lit." : "");
           });
           switches.push(node);
           root.querySelector(i < 3 ? ".switchboard-top" : ".switchboard-bottom").append(node);
@@ -822,14 +822,14 @@
             const off = [...on].filter(i => !solution.includes(i));
             const add = solution.filter(i => !on.has(i));
             const steps = [off.length ? `Switch off ${off.join(", ")}` : "", add.length ? `switch on ${add.join(", ")}` : ""].filter(Boolean);
-            return steps.length ? steps.join("; ") + "." : "Nameplate compliant. Request your permit.";
+            return steps.length ? steps.join("; ") + "." : "Nameplate lit.";
           }
         };
       }
     },
     {
       id: "Carbon", label: "Reprographics", title: "The copier has cut up your name.",
-      paperwork: { hold: "Damaged copy must be restored.", approval: "Copy certified." },
+      paperwork: { hold: "Copier output awaiting repair.", approval: "Official copy restored." },
       description: "Repair the copier’s output in four moves.",
       body: reference + `<div class="copy-machine"><div class="copy-machine-header"><span class="micro">DOCUMENT COPIER</span><p id="copy-moves" aria-live="polite"></p></div><div class="copy-comparison"><div class="copy-original"><span class="micro">ORIGINAL</span><div class="copy-strips" id="copy-target"></div></div><div class="copy-output"><span class="micro">OUTPUT TRAY</span><div class="copy-strips" id="copy-value" aria-live="polite"></div></div></div><div class="copy-controls" role="group" aria-label="Copier controls"></div><div class="tool-row"><button class="text-button" id="copy-undo" type="button">Undo operation ↶</button><button class="text-button" id="copy-reset" type="button">Revert ↺</button></div></div>`,
       action: "Confirm my copy", footnote: "Original identity. Recycled paper.",
@@ -868,7 +868,7 @@
         renderStrips("#copy-target", target);
         const controls = [];
         function update() {
-          announce(value() === target ? "Name reassembled." : "");
+          announce(value() === target ? "Copy restored." : "");
           renderStrips("#copy-value", value());
           text(root, "#copy-moves", `${history.length - 1} / 4 moves.`);
           controls.forEach(node => { node.disabled = history.length > 4; });
@@ -903,7 +903,7 @@
         root.querySelector("#copy-reset").addEventListener("click", () => { history.length = 1; update(); });
         update();
         return {
-          validate: () => value() === target ? "" : "Copy mismatch. Undo or reload, then try again.",
+          validate: () => value() === target ? "" : "Match the original. Undo or revert to try again.",
           hint: () => {
             const path = R.copySolution(value(), target);
             return path.length <= 5 - history.length ? "From here: " + (path.length ? path.map(i => R.copyOperations[i].label).join(" → ") : "submit.") : "Revert, then: " + R.copySolution(start, target).map(i => R.copyOperations[i].label).join(" → ");
@@ -914,7 +914,7 @@
     {
       focusTarget: ".seal-cell:not(:disabled)",
       id: "Approval", label: "Approvals", title: "Approve your own approval.",
-      paperwork: { hold: "Personal seal required.", approval: "Approval seal stamped." },
+      paperwork: { hold: "Personal approval seal required.", approval: "Personal approval stamped." },
       description: "Sign your initials here.",
       body: reference + `<p class="seal-example"><small>Hint: Numbers tell you how the squares are grouped.</p></small><div class="seal-tools" role="group" aria-label="Seal tools"><button type="button" class="secondary-button" id="seal-ink" aria-pressed="true">Ink</button><button type="button" class="secondary-button" id="seal-blank" aria-pressed="false">Mark blank ×</button><button type="button" class="text-button" id="seal-undo">Undo ↶</button><button type="button" class="text-button" id="seal-reset">Start over ↺</button></div><div class="seal-pair"></div><p class="tiles-caption">Tap or drag to ink. Right-click marks blanks.</p>`,
       action: "Stamp my approval", footnote: "The final authority was you all along.",

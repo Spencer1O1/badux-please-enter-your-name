@@ -21,7 +21,8 @@
     const expected = customs(name);
     const withoutY = expected.replace(/y/gi, "").trim() || "NONE";
     const answer = normalizeName(value).toUpperCase().normalize("NFC");
-    return [expected, withoutY].some(option => normalizeName(option).toUpperCase().normalize("NFC") === answer);
+    return [expected, withoutY].some(option => normalizeName(option).toUpperCase().normalize("NFC") === answer
+      || (option === "NONE" && answer === ""));
   }
   const nameStats = name => ({ letters: (name.normalize("NFC").match(/\p{L}/gu) || []).length, vowels: letters(name).filter(char => characterKind(char) === "Vowels").length });
   function validName(value) {
