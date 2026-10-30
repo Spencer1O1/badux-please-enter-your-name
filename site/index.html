@@ -7,11 +7,11 @@
   <meta name="theme-color" content="#f3f0e5">
   <title>Please enter your name. | Department of Name Acquisition</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./style.css?v=20261028-queue-size-1">
-  <link rel="stylesheet" href="./puzzles.css?v=20261028-feedback-1">
-  <script src="./rules.js?v=20261028-seeded-2" defer></script>
-  <script src="./departments.js?v=20261028-copy-cleanup-1" defer></script>
-  <script src="./app.js?v=20261028-copy-cleanup-1" defer></script>
+  <link rel="stylesheet" href="./style.css?v=20261029-ticket-3">
+  <link rel="stylesheet" href="./puzzles.css?v=20261029-stamps-2">
+  <script src="./rules.js?v=20261029-stamp-mix-1" defer></script>
+  <script src="./departments.js?v=20261029-stamp-reference-1" defer></script>
+  <script src="./app.js?v=20261029-ticket-3" defer></script>
 </head>
 
 <body>
@@ -42,9 +42,9 @@
     </section>
     <div class="workspace">
       <aside class="queue" aria-label="Office queue">
-        <div class="queue-screen"><span class="micro">YOUR TICKET</span><b id="queue-number">—</b><span
+        <div class="queue-screen"><span class="micro">YOUR TICKET</span><b id="queue-number" class="ticket-unissued">NOT ISSUED</b><span
             class="queue-divider"></span><span class="micro">NOW SERVING</span><strong id="now-serving">—</strong><span
-            class="micro queue-footer">48 AHEAD</span></div>
+            class="micro queue-footer" hidden></span></div>
       </aside>
       <aside class="office-note" aria-labelledby="office-note-title"><span class="paperclip" aria-hidden="true"></span>
         <div class="note-paper">
@@ -98,6 +98,15 @@
         names. No data saved. No good reason.</span><button class="text-button" id="reset-button" type="button">Shred
         application ↺</button></footer>
   </main>
+  <dialog id="ticket-dialog" class="ticket-dialog" aria-labelledby="ticket-title" aria-describedby="ticket-condition">
+    <div class="issued-ticket">
+      <p class="micro">DEPARTMENT OF<br>NAME ACQUISITION</p>
+      <h2 id="ticket-title" tabindex="-1">YOUR TICKET</h2>
+      <output id="issued-ticket-number"></output>
+      <p id="ticket-condition">Incomplete paperwork voids this ticket.</p>
+      <button class="primary-button" id="accept-ticket" type="button">Take ticket</button>
+    </div>
+  </dialog>
   <noscript>
     <p class="noscript">This entirely unnecessary paperwork needs JavaScript. No information is sent anywhere.</p>
   </noscript>

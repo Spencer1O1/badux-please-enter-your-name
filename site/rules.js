@@ -98,31 +98,48 @@
     const reordered = parts[parts.length - 1] + ", " + parts.slice(0, -1).join(" ");
     return shuffle([name, name, name, typoOne, changed.join(""), name + " Junior", "Not " + name, reordered, name + "!"], random);
   }
-  function decodeNameClue(book, alphabet, clue) {
-    const index = alphabet.indexOf(book[clue.position]);
-    return alphabet[(index + clue.offset + alphabet.length) % alphabet.length];
-  }
-  const nameClueLabel = ({ position, offset }) => String(position + 1).padStart(2, "0") + (offset > 0 ? `+${offset}` : offset < 0 ? `−${-offset}` : "=");
-  function nameMemo(name, random = Math.random) {
-    const book = nameLetters(name.toUpperCase());
-    const alphabet = [...new Set([...letters("ABCDEFGHIJKLMNOPQRSTUVWXYZ"), ...book])];
-    const positions = shuffle(book.map((_, i) => i), random);
-    const offsets = [2 + Math.floor(random() * 4), -(2 + Math.floor(random() * 4)), 0, ...shuffle([-5, -4, -3, -2, -1, 1, 2, 3, 4, 5], random).slice(0, 3)];
-    const clues = offsets.map((offset, i) => ({ position: positions[i % positions.length], offset }));
-    const decode = () => clues.map(clue => decodeNameClue(book, alphabet, clue)).join("");
-    if (decode() === book.join("")) clues[0].offset = clues[0].offset === 5 ? 2 : clues[0].offset + 1;
-    const encoded = clues.map(nameClueLabel).join(" · ");
-    return { book, alphabet, clues, encoded, word: decode() };
-  }
-  function makeNameStamps(name, random = Math.random) {
+  function makeNameLock(name, random = Math.random) {
     const target = name.toUpperCase().normalize("NFC");
-    const needed = [...new Set(nameLetters(target))];
-    const extras = shuffle(letters("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"), random).filter(char => !needed.includes(char));
-    return { target, stamps: shuffle([...needed, ...extras.slice(0, Math.max(0, 12 - needed.length))], random) };
+    const alphabet = [...new Set([...letters("ABCDEFGHIJKLMNOPQRSTUVWXYZ"), ...nameLetters(target)])];
+    const groups = splitName(nameLetters(target).join(""), 4);
+    const combination = groups.map(group => group ? 1 + Math.floor(random() * 9) : 0);
+    const encoded = groups.map((group, i) => letters(group).map(char => alphabet[(alphabet.indexOf(char) - combination[i] + alphabet.length) % alphabet.length]).join(""));
+    return { target, alphabet, encoded, combination };
   }
-  function makeStampTray(stamps, nextLetter, random = Math.random) {
+  function lockGroups(puzzle, dials) {
+    return puzzle.encoded.map((group, i) => letters(group).map(char => puzzle.alphabet[(puzzle.alphabet.indexOf(char) + dials[i]) % puzzle.alphabet.length]).join(""));
+  }
+  function lockText(puzzle, text, group, digit) {
+    const offset = digit - puzzle.combination[group];
+    return letters(text).map(char => {
+      const index = puzzle.alphabet.indexOf(char.toUpperCase());
+      if (index < 0) return char;
+      const shifted = puzzle.alphabet[(index + offset + puzzle.alphabet.length) % puzzle.alphabet.length];
+      return char === char.toLowerCase() ? shifted.toLowerCase() : shifted;
+    }).join("");
+  }
+  function lockAssessment(puzzle, text, row, dials) {
+    let letter = 0;
+    return letters(text).map(char => {
+      if (!/\p{L}/u.test(char)) return { dial: null, text: char };
+      const dial = (row + letter++) % 4;
+      return { dial, text: lockText(puzzle, char, dial, dials[dial]) };
+    });
+  }
+  function makeNameStamps(name) {
+    const target = name.toUpperCase().normalize("NFC");
+    return { target, stamps: [...new Set(nameLetters(target))] };
+  }
+  function makeStampTray(stamps, nextLetter, random = Math.random, previous = []) {
     const required = nextLetter === undefined ? [] : [nextLetter];
-    return shuffle([...required, ...shuffle(stamps.filter(char => char !== nextLetter), random).slice(0, 12 - required.length)], random);
+    const chosen = [...required, ...shuffle(stamps.filter(char => char !== nextLetter), random).slice(0, Math.min(8, stamps.length) - required.length)];
+    const alphabet = shuffle(letters("ABCDEFGHIJKLMNOPQRSTUVWXYZ").filter(char => !chosen.includes(char)), random);
+    const extras = alphabet.slice(0, 12 - chosen.length);
+    if (previous.length && [...chosen, ...extras].every(char => previous.includes(char))) {
+      const fresh = alphabet.find(char => !previous.includes(char));
+      if (fresh) extras[extras.length - 1] = fresh;
+    }
+    return shuffle([...chosen, ...extras], random);
   }
   function archiveTruth(file, clues, name) {
     const chars = nameLetters(name);
@@ -303,6 +320,7 @@
     return null;
   }
   function makeNameMaze(name, random = Math.random) {
+    const firstName = normalizeName(name).split(" ")[0];
     const width = 15;
     const start = Math.floor(width * width / 2);
     const passages = Array.from({ length: width * width }, () => []);
@@ -328,7 +346,7 @@
     const maze = { width, start, passages };
     // Pickups are all dead ends. No uncollected letter can block a route to
     // another one, even when repeated letters are collected in a different order.
-    const chars = nameLetters(name);
+    const chars = nameLetters(firstName);
     const leaves = passages.map((links, cell) => links.length === 1 ? cell : -1).filter(cell => cell >= 0);
     if (leaves.length < chars.length) return makeNameMaze(name, random);
     function branchLeaves(cell, parent) {
@@ -388,7 +406,7 @@
   globalThis.NameOffice = { rules: Object.freeze({
     letters, nameLetters, formatNameProgress, normalizeName, reverse, characterKind, customs, acceptsCustoms, validName, nameStats,
     queuePlaces, queueStepMs, queueDurationMs, formatRunTime, newRunSeed, runCode, createRandom, issueQueueTicket, queueStatus,
-    shuffle, makeNameEvidence, decodeNameClue, nameClueLabel, nameMemo, makeNameStamps, makeStampTray, archiveTruth, makeNameArchive,
+    shuffle, makeNameEvidence, makeNameLock, lockGroups, lockText, lockAssessment, makeNameStamps, makeStampTray, archiveTruth, makeNameArchive,
     circuitNumbers, powerState, powerSolution, makeNamePower,
     copyOperations, copySolution, makeCopyPuzzle, sealInitials, sealGlyph, inkRuns, sealDeduction, makeSealPuzzle, sealComplete, neighbors, adjacent, mazePath, makeNameMaze, mazeStep, mazeRay, mazeMove, mazeRun
   }) };

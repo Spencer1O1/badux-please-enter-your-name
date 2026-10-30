@@ -7,12 +7,14 @@
   const progress = document.querySelector(".progress");
   const hintButton = document.querySelector("#hint-button");
   const seed = readRunSeed() ?? R.newRunSeed();
-  const state = { applicant: "", current: 0, records: {}, seed, queue: R.issueQueueTicket(R.createRandom(seed, "", "Queue")), startedAt: null, finishedAt: null, lost: false, assistanceCount: 0 };
+  const state = { applicant: "", current: 0, records: {}, seed, queue: R.issueQueueTicket(R.createRandom(seed, "", "Queue")), startedAt: null, finishedAt: null, lost: false, assistanceCount: 0, ticketIssued: false, ticketPending: false };
   let queueTimer = null;
   let queueVisible = true;
   let queueRenderKey = "";
   let queueSignal = "";
   let activeDepartment;
+  let ticketRevealTimer = null;
+  const ticketDialog = document.querySelector("#ticket-dialog");
 
   function readRunSeed() {
     const requested = new URLSearchParams(location.hash.slice(1)).get("seed");
@@ -38,24 +40,25 @@
   }
 
   function updateTickerVisibility() {
-    document.querySelector("#queue-ticker").hidden = queueVisible || state.startedAt === null || state.lost || state.current === departments.length;
+    document.querySelector("#queue-ticker").hidden = queueVisible || state.startedAt === null || state.lost || state.current === departments.length || document.body.classList.contains("ticket-present");
   }
 
   function renderQueue(snapshot) {
     const complete = state.current === departments.length;
     const phase = state.lost ? "missed" : complete ? "complete" : snapshot.phase;
     updateTickerVisibility();
-    const key = `${state.queue.number}:${snapshot.serving}:${phase}`;
+    const key = `${state.queue.number}:${snapshot.serving}:${phase}:${state.ticketIssued}`;
     if (key === queueRenderKey) return;
     queueRenderKey = key;
     document.body.dataset.queuePhase = phase;
     document.body.dataset.queueRunning = String(state.startedAt !== null && !state.lost && !complete);
     document.querySelector("#now-serving").textContent = String(snapshot.serving).padStart(3, "0");
-    document.querySelector("#queue-number").textContent = String(state.queue.number).padStart(3, "0");
+    document.querySelector("#queue-number").textContent = state.ticketIssued ? String(state.queue.number).padStart(3, "0") : "NOT ISSUED";
+    document.querySelector("#queue-number").classList.toggle("ticket-unissued", !state.ticketIssued);
     document.querySelector("#ticker-serving").textContent = String(snapshot.serving).padStart(3, "0");
     document.querySelector("#ticker-number").textContent = String(state.queue.number).padStart(3, "0");
     document.querySelector("#ticker-ahead").textContent = snapshot.ahead === 1 ? "YOU’RE NEXT" : `${snapshot.ahead} AHEAD`;
-    const footer = phase === "waiting" ? `${R.queuePlaces} AHEAD`
+    const footer = phase === "waiting" ? ""
       : phase === "complete" ? "PAPERWORK READY. TURN SECURED."
         : phase === "missed" ? "YOUR TURN. YOUR PAPERS?"
           : snapshot.ahead === 1 ? "YOUR NUMBER IS NEXT."
@@ -63,12 +66,13 @@
               : phase === "urgent" ? `${snapshot.ahead} AHEAD. ALMOST YOUR TURN.`
                 : phase === "warning" ? `${snapshot.ahead} AHEAD. KEEP FILING.` : `${snapshot.ahead} TICKETS AHEAD`;
     document.querySelector(".queue-footer").textContent = footer;
+    document.querySelector(".queue-footer").hidden = phase === "waiting";
     const signal = phase === "critical" && snapshot.ahead === 1 ? "next" : phase;
     if (signal !== queueSignal) {
       queueSignal = signal;
       document.querySelector("#queue-announcement").textContent = ({
-        warning: "Two minutes until your turn. Keep filing.", urgent: "One minute. Have your paperwork ready.",
-        critical: "Thirty seconds until your number is called.", next: "Your number is next."
+        warning: "Your number is getting closer. Keep filing.", urgent: "Have your paperwork ready.",
+        critical: "Your turn is approaching.", next: "Your number is next."
       })[signal] || "";
     }
   }
@@ -89,6 +93,7 @@
   }
 
   function missTurn(now) {
+    clearTicketPresentation();
     state.lost = true;
     state.finishedAt = now;
     stopQueue();
@@ -204,7 +209,7 @@
     activeDepartment = null;
   }
 
-  function showStage({ focus = true, shifted = false } = {}) {
+  function showStage({ focus = true, scroll = true, shifted = false } = {}) {
     const complete = state.current === departments.length;
     renderProgress(shifted);
     renderReceipt(complete);
@@ -242,15 +247,24 @@
     stage.querySelectorAll(".applicant-name").forEach(node => { node.textContent = state.applicant; });
     if (focus) {
       const title = stage.querySelector("#stage-title");
-      title.focus({ preventScroll: true });
+      const department = departments[state.current];
+      const entry = complete ? title : stage.querySelector(department.focusTarget || 'input:not(:disabled), [tabindex="0"], button:not(:disabled):not([tabindex="-1"])') || title;
+      const target = complete ? title : stage.querySelector('input:not(:disabled)') || title;
+      if (!complete && target === title) title.addEventListener("keydown", event => {
+        if (event.key === "Tab" && !event.shiftKey && entry !== title) {
+          event.preventDefault();
+          entry.focus();
+        }
+      });
+      target.focus({ preventScroll: true });
       const bounds = title.getBoundingClientRect();
-      if (bounds.top < (state.startedAt !== null && !complete ? 68 : 0) || bounds.bottom > window.innerHeight) title.scrollIntoView({ block: "start" });
+      if (scroll && (bounds.top < (state.startedAt !== null && !complete ? 68 : 0) || bounds.bottom > window.innerHeight)) title.scrollIntoView({ block: "start" });
     }
   }
 
   function submit(event) {
     event.preventDefault();
-    if (!updateQueue() || !activeDepartment) return;
+    if (!updateQueue() || !activeDepartment || state.ticketPending || ticketRevealTimer !== null) return;
     stage.querySelectorAll("[aria-invalid]").forEach(input => input.removeAttribute("aria-invalid"));
     const error = activeDepartment.validate();
     if (error) {
@@ -263,8 +277,17 @@
     if (!updateQueue(submittedAt)) return;
     if (state.current === 0) {
       state.applicant = R.normalizeName(stage.querySelector("#name-input").value);
-      state.startedAt = submittedAt;
+      state.ticketPending = true;
+      document.querySelector("#issued-ticket-number").textContent = String(state.queue.number).padStart(3, "0");
+      document.body.classList.add("ticket-present");
+      ticketDialog.showModal();
+      document.querySelector("#ticket-title").focus({ preventScroll: true });
+      return;
     }
+    advanceDepartment(submittedAt);
+  }
+
+  function advanceDepartment(submittedAt) {
     const approval = approvalFor(departments[state.current]);
     state.current++;
     const complete = state.current === departments.length;
@@ -275,7 +298,55 @@
       : `${approval} ${state.current === 4 ? "Additional department" : "Referred to"}: ${departments[state.current].label}.`);
   }
 
+  function clearTicketPresentation() {
+    if (ticketRevealTimer !== null) clearTimeout(ticketRevealTimer);
+    ticketRevealTimer = null;
+    ticketDialog.close();
+    document.body.classList.remove("ticket-present", "ticket-reveal");
+    document.querySelector("main").inert = false;
+    document.querySelector(".masthead").inert = false;
+  }
+
+  document.querySelector("#accept-ticket").addEventListener("click", () => {
+    if (!state.ticketPending) return;
+    state.ticketPending = false;
+    state.ticketIssued = true;
+    state.startedAt = Date.now();
+    ticketDialog.close();
+    document.querySelector("main").inert = true;
+    document.querySelector(".masthead").inert = true;
+    document.body.classList.add("ticket-reveal");
+    updateQueue();
+    const queue = document.querySelector(".queue");
+    const bounds = queue.getBoundingClientRect();
+    if (bounds.top < 0 || bounds.bottom > innerHeight) queue.scrollIntoView({ block: "center" });
+    const finish = () => {
+      clearTicketPresentation();
+      if (!state.lost) advanceDepartment(state.startedAt);
+    };
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) finish();
+    else ticketRevealTimer = setTimeout(finish, 1400);
+  });
+
+  ticketDialog.addEventListener("keydown", event => {
+    if (event.key === "Enter" && event.target.id === "ticket-title") {
+      event.preventDefault();
+      document.querySelector("#accept-ticket").click();
+    }
+  });
+
+  ticketDialog.addEventListener("cancel", event => {
+    event.preventDefault();
+    clearTicketPresentation();
+    state.ticketPending = false;
+    state.applicant = "";
+    stage.querySelector("input").focus();
+  });
+
   function startNewApplication(seed) {
+    clearTicketPresentation();
+    state.ticketIssued = false;
+    state.ticketPending = false;
     stopQueue();
     state.startedAt = null;
     state.finishedAt = null;
@@ -296,7 +367,7 @@
   }
 
   hintButton.addEventListener("click", () => {
-    if (!updateQueue() || !activeDepartment) return;
+    if (!updateQueue() || !activeDepartment || state.ticketPending || ticketRevealTimer !== null) return;
     const hint = activeDepartment.hint();
     state.assistanceCount++;
     announce(hint, "hint");
@@ -318,5 +389,5 @@
     else recordRunSeed();
   });
   recordRunSeed();
-  showStage({ focus: false });
+  showStage({ scroll: false });
 })();

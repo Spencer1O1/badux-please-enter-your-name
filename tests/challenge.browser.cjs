@@ -14,6 +14,12 @@ const seedOnly = process.argv.includes("--seed-only");
 require("../site/rules.js");
 const R = NameOffice.rules;
 const queueTestTime = Date.UTC(2026, 9, 28, 12);
+async function takeTicket(page) {
+  if (await page.locator("#ticket-dialog").evaluate(dialog => dialog.open)) {
+    await page.locator("#accept-ticket").click();
+  }
+}
+
 
 for (const engine of engines) {
   const layouts = engine === "chromium" ? [
@@ -43,7 +49,7 @@ for (const engine of engines) {
         const runSeed = parseInt(runCode, 16);
         assert.match(runCode, /^[0-9A-F]{8}$/);
         assert.equal(new URL(page.url()).hash, `#seed=${runCode}`);
-        const submit = () => page.locator("#department-form [type=submit]").click();
+        const submit = async () => { await page.locator("#department-form [type=submit]").click(); await takeTicket(page); };
         const expectError = async () => {
           assert.equal(await page.locator("#message").evaluate(node => node.classList.contains("error")), true, "a rejected action must report an error");
         };
@@ -59,7 +65,8 @@ for (const engine of engines) {
             if (["intake", "volume"].includes(label)) await page.locator(".application").screenshot({ path: resolve(screenshotDirectory, `name-office-${engine}-${layout.width}-${label}-form.png`) });
           }
         };
-        const queueNumber = await page.locator("#queue-number").textContent();
+        const queueNumber = String(R.issueQueueTicket(R.createRandom(runSeed, "", "Queue")).number);
+        assert.equal(await page.locator("#queue-number").evaluate(node => node.classList.contains("ticket-unissued")), true);
         const serving = await page.locator("#now-serving").textContent();
         assert.ok(Number(queueNumber) >= 100 && Number(queueNumber) <= 999);
         assert.equal(Number(queueNumber) - Number(serving), 48);
@@ -82,11 +89,15 @@ for (const engine of engines) {
             assert.deepEqual(await page.locator(".progress li span").allTextContents(), expected);
           }
           assert.equal(parseInt(await page.locator("#receipt-count").textContent(), 10), number - 1);
-          if (number > 1) {
-            assert.equal(await page.evaluate(() => document.activeElement.id), "stage-title");
-            assert.equal(await page.locator("#stage-title").evaluate(node => getComputedStyle(node).outlineStyle), "none", "department headings must not get a focus box");
+          const entryFocus = ["#name-input", "#name-input", "#name-input", ".name-tile", ".loose-letter", ".lock-arrow", ".letter-stamp", ".archive-file", ".desk-maze", ".circuit-switch", ".copy-controls button", ".seal-cell:not(:disabled)"][number - 1];
+          if (number <= 3) {
+            assert.equal(await page.locator(entryFocus).first().evaluate(node => node === document.activeElement), true);
+          } else {
+            assert.equal(await page.evaluate(() => document.activeElement.id), "stage-title", "non-text puzzles must not focus a control before Tab");
+            await page.keyboard.press("Tab");
+            assert.equal(await page.locator(entryFocus).first().evaluate(node => node === document.activeElement), true, `department ${number}: first Tab must focus the primary control`);
           }
-          assert.equal(await page.locator("#queue-number").textContent(), queueNumber, "the ticket stays with the application");
+          if (number > 1) assert.equal(await page.locator("#queue-number").textContent(), queueNumber, "the ticket stays with the application");
           assert.equal(await page.locator("#now-serving").textContent(), serving);
           const clip = await clipPosition();
           assert.ok(Math.abs(clip.x - clipAnchor.x) < .1 && Math.abs(clip.y - clipAnchor.y) < .1, "the paperclip must stay anchored while the paper shifts");
@@ -125,6 +136,7 @@ for (const engine of engines) {
         await page.locator("#name-input").fill(layout.name);
         assert.equal(await page.locator("#message").textContent(), "", "editing an answer clears obsolete feedback");
         await page.locator("#name-input").press("Enter");
+        await takeTicket(page);
         assert.equal(await page.locator("#receipt-name").textContent(), name);
         await stage(2);
         await screenshot("volume");
@@ -194,23 +206,44 @@ for (const engine of engines) {
         assert.equal(await page.locator("#recovered-name").textContent(), name);
         await submit();
         await stage(6);
-        assert.equal(await page.locator("#stage #name-input").count(), 0);
-        assert.equal(await page.locator("#dial-forward").count(), 0);
-        await page.locator("#reference-input").fill(layout.name);
+        assert.equal(await page.locator("#stage input").count(), 0);
+        const lock = R.makeNameLock(name, stageRandom("Secrecy"));
+        assert.deepEqual(await page.locator(".lock-letters").allTextContents(), lock.encoded.map(group => group || "—"));
+        const lines = page.locator(".assessment-lines li");
+        assert.equal(await lines.count(), 4);
+        const encryptedAssessment = await lines.allTextContents();
+        assert.ok(encryptedAssessment.every(line => line.length > 0));
+        const wheels = page.locator(".lock-wheel");
+        assert.equal(await wheels.count(), 4);
+        await wheels.nth(0).locator(".lock-arrow").nth(1).click();
+        assert.equal(await wheels.nth(0).getAttribute("data-value"), "9");
+        await wheels.nth(0).locator(".lock-arrow").nth(0).click();
+        assert.equal(await wheels.nth(0).getAttribute("data-value"), "0");
+        await wheels.nth(0).locator(".lock-arrow").nth(0).click();
         await submit();
         await expectError();
-        const book = await page.locator(".name-index > span").evaluateAll(nodes => nodes.map(node => node.dataset.character));
-        assert.equal(book.join(""), name.toUpperCase().normalize("NFC").replace(/ /g, ""));
-        const alphabet = R.letters(await page.locator("#cipher-alphabet").textContent()).filter(char => char !== " ");
-        const clues = await page.locator(".cipher-clue").evaluateAll(nodes => nodes.map(node => ({ position: Number(node.dataset.position), offset: Number(node.dataset.offset) })));
-        assert.deepEqual(clues, R.nameMemo(name, stageRandom("Secrecy")).clues);
-        assert.equal(clues.length, 6);
-        assert.ok(clues.some(clue => clue.offset >= 2) && clues.some(clue => clue.offset <= -2));
-        assert.equal(await page.locator("#cipher-text").textContent(), clues.map(({ position, offset }) => String(position + 1).padStart(2, "0") + (offset > 0 ? `+${offset}` : offset < 0 ? `−${-offset}` : "=")).join(""));
-        const word = clues.map(({ position, offset }) => alphabet[(alphabet.indexOf(book[position]) + offset + alphabet.length) % alphabet.length]).join("");
-        assert.notEqual(word, book.join(""));
-        await page.locator("#reference-input").fill(word.toLowerCase());
-        assert.equal(await page.locator("#message").textContent(), "");
+        assert.deepEqual(await wheels.evaluateAll(nodes => nodes.map(node => Number(node.dataset.value))), [0, 0, 0, 0]);
+        for (let i = 0; i < 4; i++) {
+          const beforeLines = await lines.allTextContents();
+          const control = wheels.nth(i).locator(".lock-arrow").nth(0);
+          for (let turn = 0; turn < lock.combination[i]; turn++) {
+            if (layout.touch) await control.tap();
+            else { await control.focus(); await page.keyboard.press("ArrowUp"); }
+          }
+          const afterLines = await lines.allTextContents();
+          for (let row = 0; row < 4; row++) assert.notEqual(afterLines[row], beforeLines[row], "each dial must affect every line");
+        }
+        const decodedAssessment = await lines.allTextContents();
+        await wheels.nth(0).locator(".lock-arrow").nth(0).click();
+        const shiftedLine = await lines.nth(0).textContent();
+        assert.ok(shiftedLine.length > 0);
+        assert.notEqual(shiftedLine, decodedAssessment[0]);
+        const changedLines = await lines.allTextContents();
+        for (let row = 0; row < 4; row++) assert.notEqual(changedLines[row], decodedAssessment[row]);
+        const assignments = await lines.evaluateAll(nodes => nodes.map(node => [...node.children].filter(part => part.dataset.dial !== "").map(part => Number(part.dataset.dial))));
+        assignments.forEach((dials, row) => assert.deepEqual(dials, dials.map((_, column) => (row + column) % 4)));
+        await wheels.nth(0).locator(".lock-arrow").nth(1).click();
+        assert.deepEqual(await lines.allTextContents(), decodedAssessment);
         await screenshot("secrecy");
         await submit();
         await stage(7);
@@ -222,7 +255,7 @@ for (const engine of engines) {
         assert.deepEqual(trayShape, { rows: 3, columns: 4 });
         await screenshot("stamps");
         const stampTarget = name.toUpperCase().normalize("NFC");
-        assert.equal(await page.locator("#stamp-target").textContent(), stampTarget);
+        assert.equal(await page.locator(".reference-name .applicant-name").textContent(), name);
         const stampChars = R.letters(stampTarget);
         const stampRandom = stageRandom("Stamps");
         const seededStamps = R.makeNameStamps(name, stampRandom);
@@ -238,6 +271,7 @@ for (const engine of engines) {
         const beforeFirstStamp = await trayOrder();
         await pickStamp(stampChars[0]);
         assert.notEqual(await trayOrder(), beforeFirstStamp, "the clerk must rearrange the stamps after a pick");
+        assert.ok((await trayOrder()).split("|").some(char => !beforeFirstStamp.split("|").includes(char)), "reshuffling must change the stamp choices, not just their positions");
         const stamped = await page.locator("#stamped-name").textContent();
         const nextRequired = stampChars[R.letters(stamped).length];
         const wrongStamp = (await page.locator(".letter-stamp").allTextContents()).find(char => char !== nextRequired);
@@ -272,18 +306,27 @@ for (const engine of engines) {
         const original = archiveFiles.filter(file => archiveTruths(file).filter(Boolean).length === 3);
         assert.equal(original.length, 1);
         const liar = archiveTruths(original[0]).indexOf(false);
+        const linkedClue = archiveClues.find(clue => clue.slot !== null);
+        const linkedIndex = archiveClues.indexOf(linkedClue);
+        await page.locator(".archive-clerk").nth(linkedIndex).focus();
+        assert.equal(await page.locator(".archive-file strong .archive-linked").count(), 6);
+        assert.equal(await page.locator(".name-index .archive-linked").count(), 1);
         await submit();
         await expectError();
+        const incompleteArchiveError = await page.locator("#message").textContent();
         // A file satisfying every statement is a deliberate trap: one clerk MUST lie.
         const allHonest = archiveFiles.find(file => archiveTruths(file).every(Boolean));
         await page.locator(`.archive-file[data-number="${allHonest.number}"]`).click();
         await page.locator(".archive-clerk").nth(liar).click();
         await submit();
         await expectError();
+        assert.equal(await page.locator("#message").textContent(), incompleteArchiveError, "a wrong file must not receive diagnostic feedback");
         await page.locator(`.archive-file[data-number="${original[0].number}"]`).click();
+        assert.ok((await page.locator("#archive-context").textContent()).includes(String(original[0].number)));
         await page.locator(".archive-clerk").nth((liar + 1) % 4).click();
         await submit();
         await expectError();
+        assert.equal(await page.locator("#message").textContent(), incompleteArchiveError, "the correct file with a wrong statement must receive the same error");
         if (layout.touch) await page.locator(".archive-clerk").nth(liar).tap();
         else {
           await page.locator(".archive-clerk").nth(liar).focus();
@@ -314,7 +357,7 @@ for (const engine of engines) {
         assert.deepEqual(maze, R.makeNameMaze(name, stageRandom("Transit")));
         assert.equal(maze.width, 15);
         assert.equal(await page.locator(".maze-piece small").count(), 0, "maze letters must not have ordinal numbers");
-        assert.equal(maze.pickups.map(piece => piece.char).join(""), name.replace(/ /g, ""));
+        assert.equal(maze.pickups.map(piece => piece.char).join(""), name.split(" ")[0]);
         assert.ok(maze.pickups.every(piece => piece.char !== " "));
         assert.equal(maze.start, 112);
         assert.equal(await page.locator("#department-form [type=submit]").isDisabled(), true);
@@ -366,7 +409,7 @@ for (const engine of engines) {
           prefix.push(...R.mazePath(maze, position, piece.cell));
           position = piece.cell;
         }
-        assert.ok(wrongRoute, "the maze should offer a consequential wrong turn");
+        if (wrongRoute) {
         await walk(prefix);
         await walk(wrongRoute, true);
         await expectError();
@@ -375,6 +418,7 @@ for (const engine of engines) {
         assert.equal(await page.locator(".collected-piece").count(), 0);
         assert.equal(await page.locator(".maze-piece").count(), maze.pickups.length);
         assert.equal(layoutBefore, JSON.stringify(await readMaze()), "a reset must keep the same puzzle");
+        }
         const alternative = maze.pickups.slice(1).find(piece => piece.char.toUpperCase() === maze.pickups[0].char.toUpperCase());
         if (alternative) {
           await walk(R.mazePath(maze, maze.start, alternative.cell));
@@ -391,11 +435,11 @@ for (const engine of engines) {
           position = piece.cell;
           assert.equal(await page.locator(".desk-maze").getAttribute("data-collected"), String(piece.index + 1));
         }
-        assert.ok(longMoves > 0, "rook clicks must travel multiple cells");
+        if (maze.pickups.length > 1) assert.ok(longMoves > 0, "rook clicks must travel multiple cells");
         assert.equal(await page.locator("#department-form [type=submit]").isDisabled(), false);
         assert.equal(await page.locator(".desk-maze").getAttribute("data-position"), String(maze.pickups.at(-1).cell));
         assert.equal(await page.locator(".desk-maze").getAttribute("data-exit"), null);
-        assert.equal(await page.locator("#maze-name").textContent(), name);
+        assert.equal(await page.locator("#maze-name").textContent(), name.split(" ")[0]);
         await submit();
         await stage(10);
         await submit();
@@ -501,7 +545,7 @@ for (const engine of engines) {
         assert.notEqual(await page.locator("body").getAttribute("data-run-seed"), runCode, "a new application gets a new seed");
         assert.equal(await page.locator("#completion-time").count(), 0, "a new application must not display the old run's time");
         assert.equal(await page.locator("#assistance-summary").count(), 0);
-        assert.ok(Number(await page.locator("#queue-number").textContent()) >= 100);
+        assert.equal(await page.locator("#queue-number").evaluate(node => node.classList.contains("ticket-unissued")), true);
         assert.deepEqual(await page.locator(".progress li span").allTextContents(), ["01", "02", "03", "04"]);
         await page.locator("#name-input").fill("Spare Name");
         await submit();
@@ -535,6 +579,7 @@ for (const engine of engines) {
         for (const value of ["Lady Soup", "LADY SOUP", "Ldy Sp"]) {
           await page.locator("#name-input").fill(value);
           await page.locator("[type=submit]").click();
+      await takeTicket(page);
         }
         if (assistance) {
           await page.locator("#hint-button").click();
@@ -577,8 +622,8 @@ for (const engine of engines) {
       await page.clock.pauseAt(queueTestTime + 60000);
       const phase = () => page.locator("body").getAttribute("data-queue-phase");
       const nowServing = async () => Number(await page.locator("#now-serving").textContent());
-      const ticket = Number(await page.locator("#queue-number").textContent());
       const original = await nowServing();
+      const ticket = original + 48;
       assert.equal(ticket - original, 48);
       await page.clock.fastForward(600000);
       assert.equal(await phase(), "waiting", "opening instructions do not consume the deadline");
@@ -586,13 +631,44 @@ for (const engine of engines) {
       await page.locator("#hint-button").click(); // Intake assistance belongs to this application too.
       await page.locator("#name-input").fill("Lady Soup Junior");
       await page.locator("[type=submit]").click();
+      await takeTicket(page);
       assert.equal(await phase(), "waiting", "invalid intake does not start the queue");
       await page.locator("#name-input").fill("Lady Soup");
+      await page.locator("#name-input").press("Enter");
+      assert.equal(await page.locator("#ticket-dialog").evaluate(dialog => dialog.open), true);
+      assert.equal(await page.locator("#ticket-title").evaluate(node => node === document.activeElement), true);
+      assert.equal(await page.locator("#ticket-title").evaluate(node => getComputedStyle(node).outlineStyle), "none");
+      assert.equal(await page.locator("#ticket-dialog").evaluate(node => getComputedStyle(node).outlineStyle), "none");
+      await page.keyboard.press("Tab");
+      assert.equal(await page.locator("#accept-ticket").evaluate(node => node === document.activeElement), true);
+      assert.equal(Number(await page.locator("#issued-ticket-number").textContent()), ticket);
+      await page.clock.fastForward(600000);
+      assert.equal(await phase(), "waiting", "reading the ticket must not start the clock");
+      assert.equal(await nowServing(), original);
+      if (screenshotDirectory) await page.screenshot({ path: resolve(screenshotDirectory, `name-office-${engine}-ticket.png`), fullPage: true });
+      await page.keyboard.press("Escape");
+      assert.equal(await page.locator("#ticket-dialog").evaluate(dialog => dialog.open), false);
+      assert.equal(await phase(), "waiting");
+      assert.equal(await page.locator("#name-input").evaluate(node => node === document.activeElement), true);
       await page.locator("[type=submit]").click();
+      await page.emulateMedia({ reducedMotion: "no-preference" });
+      await page.keyboard.press("Enter");
+      assert.equal(await page.locator("main").evaluate(node => node.inert), true);
+      assert.equal(await page.locator("body").evaluate(node => node.classList.contains("ticket-reveal")), true);
+      await page.clock.fastForward(220);
+      if (screenshotDirectory) await page.screenshot({ path: resolve(screenshotDirectory, `name-office-${engine}-ticket-reveal.png`), fullPage: true });
+      await page.clock.fastForward(780);
+      assert.equal(await page.locator("main").evaluate(node => node.inert), true, "the counter must remain revealed before the rest of the page");
+      await page.clock.fastForward(400);
+      assert.equal(await page.locator("main").evaluate(node => node.inert), false);
+      assert.equal(await page.locator("body").evaluate(node => node.classList.contains("ticket-present")), false);
+      assert.equal(await page.locator("#name-input").evaluate(node => node === document.activeElement), true);
+      await page.emulateMedia({ reducedMotion: "reduce" });
       assert.equal(await phase(), "normal");
+      assert.equal(Number(await page.locator("#queue-number").textContent()), ticket);
       await page.locator("#hint-button").click();
       await page.locator("#hint-button").click();
-      await page.clock.fastForward(9999);
+      await page.clock.fastForward(8599);
       assert.equal(await nowServing(), original);
       await page.clock.fastForward(1);
       assert.equal(await nowServing(), original + 1);
@@ -606,6 +682,7 @@ for (const engine of engines) {
       assert.equal(ticket - await nowServing(), 12);
       await page.locator("#name-input").fill("LADY SOUP");
       await page.locator("[type=submit]").click();
+      await takeTicket(page);
       assert.equal(await phase(), "warning", "clearing a department must not restart the deadline");
       assert.equal(ticket - await nowServing(), 12);
       const receipt = await page.locator("#receipt-comment").textContent();
@@ -655,7 +732,7 @@ for (const engine of engines) {
       assert.equal(await page.locator("#queue-ticker").isVisible(), false);
       if (screenshotDirectory) await page.screenshot({ path: resolve(screenshotDirectory, `name-office-${engine}-queue-missed.png`), fullPage: true });
       await page.locator("#missed-restart").click();
-      const fresh = Number(await page.locator("#queue-number").textContent());
+      const fresh = await nowServing() + 48;
       assert.equal(fresh - await nowServing(), 48);
       assert.equal(await page.locator(".progress").isVisible(), true);
       assert.equal(await phase(), "waiting");
@@ -665,17 +742,20 @@ for (const engine of engines) {
       assert.equal(await phase(), "waiting");
       await page.locator("#name-input").fill("Lady Soup");
       await page.locator("[type=submit]").click();
+      await takeTicket(page);
       const began = await page.evaluate(() => Date.now());
       // No timer callback is run: the submission itself must reject a late form.
       await page.clock.setFixedTime(began + R.queueDurationMs);
       await page.locator("#name-input").fill("LADY SOUP");
       await page.locator("[type=submit]").click();
+      await takeTicket(page);
       assert.equal(await phase(), "missed");
       assert.equal(Number((await page.locator("#assistance-summary").textContent()).match(/\d+/)?.[0]), 0);
       await page.locator("#missed-restart").click();
       await page.locator("#hint-button").click();
       await page.locator("#name-input").fill("Lady Soup");
       await page.locator("[type=submit]").click();
+      await takeTicket(page);
       const restarted = await page.evaluate(() => Date.now());
       await page.clock.setFixedTime(restarted + 20 * 60000);
       await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));

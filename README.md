@@ -18,10 +18,14 @@ words, reversed names and added punctuation are decoys.
 Only four department tabs appear at once: after department four, the oldest tab
 slides away as the next one arrives. The game reveals its total only on completion.
 
-Each application receives a random three-digit ticket exactly 48 places ahead of
-Now serving. Submitting a valid name starts the eight-minute queue: Now serving
-advances once every 10 seconds. Opening instructions and invalid intake do not
-use the window. The queue keeps moving in background tabs and catches up from
+Intake shows Now serving but leaves the applicant ticket unissued. A valid name
+opens a generic departmental ticket, with no time estimate or queue count on it.
+Taking the ticket assigns the number exactly 48 places ahead of Now serving and
+starts the eight-minute queue: Now serving
+advances once every 10 seconds. Opening instructions, invalid intake and reading the ticket do not
+use the window. Escape returns to intake without taking the ticket. Taking it
+reveals and briefly pulses the counter, then clears the rest of the page and
+focuses Volume’s input. Reduced motion skips the effect. The queue keeps moving in background tabs and catches up from
 elapsed time on return. Finish and submit all paperwork before your number is
 called, or a voided certificate replaces the form. Success and failure share
 one centered certificate layout, name placement, seal frame, stamp spacing,
@@ -30,8 +34,8 @@ eight-minute window.
 Warnings escalate at two minutes, one minute, thirty seconds, and the final call.
 A compact queue display stays visible when the main panel scrolls away. Reduced
 motion keeps the urgency colors but disables pulsing. Completion freezes the queue
-and displays the elapsed run time as `m:ss.mmm`, measured from valid intake
-submission to final approval. The result stays fixed until a new application;
+and displays the elapsed run time as `m:ss.mmm`, measured from taking the ticket
+to final approval. The result stays fixed until a new application;
 it is not stored or uploaded. Approved and missed stamps share one CSS rule,
 including the manually tuned 7px top and 20px bottom margins.
 Both final certificates show how many times assistance was requested, including
@@ -42,8 +46,10 @@ with small changes in the paper's position and tilt beneath a stationary clip.
 Action footnotes sit opposite their buttons, aligned with the form's right edge
 and the button's bottom edge. On narrow screens they move to a right-aligned row
 below the button. The ID label and explanation stay together without wrapping.
-Inputs use a subtle inset focus border; department headings do not
-show a focus outline when navigation moves to them. On narrow screens the queue becomes a
+Inputs use a subtle inset focus border. Text-entry levels autofocus the input. Other levels keep focus on the heading
+without a control highlight; the first Tab goes to the primary puzzle control,
+including the maze board and first editable seal cell.
+Initial intake focuses the name input without scrolling past the introduction. On narrow screens the queue becomes a
 compact strip and the notes sit below the form. Empty status messages collapse;
 visible messages keep their text centered beside the status bar.
 
@@ -59,8 +65,8 @@ record ordinary HTTP access logs.
 Letter-building activities (Recovery, Stamps and Transit) reset progress on a
 wrong letter. Recovery restores every scattered piece; Stamps clears the name
 and reshuffles the tray. Green salvage pieces use a matching green hover border.
-Letter-piece puzzles (Recovery and Transit) omit spaces from the pieces and
-required sequence, but restore word spacing automatically in the progress display. Secrecy also omits spaces from its key, and Stamps inserts
+Recovery omits space pieces and restores word spacing in its progress display.
+Transit collects only the first name, with no space pieces. Secrecy omits spaces from its encrypted groups, and Stamps inserts
 word breaks automatically. Full-name forms and exact-copy evidence retain the name’s
 formatting. Archive numbers only letters, omitting spaces from both its reference
 and filing-note positions. Nameplate rows
@@ -90,7 +96,7 @@ same fields for both receipt status and the handoff after successful submission.
 | Customs | Obtain vowel clearance |
 | Evidence | Verify three exact name copies |
 | Recovery | Salvage an application from the office shredder |
-| Secrecy | Decode the confidential case reference |
+| Secrecy | Unlock the confidential personnel file |
 | Stamps | Stamp and file the form |
 | Archive | Retrieve a misfiled application and correct its filing note |
 | Transit | Recover the name from internal mail |
@@ -135,20 +141,32 @@ The completed monogram appears as a small clockwise-tilted seal at the bottom
 right of the certificate, outside the main text column. This is a standalone puzzle;
 no answers from earlier departments are needed.
 
-Department 06 is Secrecy: six position/offset clues decode an unknown reference.
-Offsets range from −5 to +5. For example, `3+4` means the third name-key
-letter, advanced four alphabet steps. Every puzzle includes larger positive and
-negative shifts and an unchanged letter; its worked example uses a larger shift.
-Spaces are omitted from the numbered key. The alphabet is printed, including any
-additional Unicode letters, and wraps at both ends. Department 07 is Stamp Duty: exactly three rows of four stamps, reshuffled
-after every pick. The next required letter is always present, even when the
-name uses more than twelve different letters.
+Department 06 is Secrecy: unlock a confidential personnel file using four
+combination wheels. Each digit shifts one encrypted group of name letters;
+each wheel applies its Caesar shift to its name group and every fourth letter of each
+assessment sentence. The first letter uses dial 1 on line 1, dial 2 on line 2,
+and so on; assignments repeat cyclically. Spaces and punctuation do not advance
+the cycle. Complete sentences need all four dials. Digits wrap from 9 to 0, and each
+nonempty group has exactly one correct digit. Wrong submissions reset the lock;
+assistance reveals the combination. All setups use the run's Secrecy stream.
+Department 07 is Stamp Duty: exactly three rows of four stamps, reshuffled
+after every pick. The tray uses wooden-handled rubber stamps with ink-red letter
+faces and a pressed state; it remains three rows of four on narrow screens.
+Each shuffle selects up to eight distinct name letters, always including the next
+required letter, and fills the twelve-stamp tray with fresh A–Z choices. Alphabet
+picks may also belong to the name. Choices are uppercase and distinct, with at
+least one new letter on every reshuffle; the run seed reproduces the sequence.
 
 Archive retrieves a misfiled application from six redacted folders. Four clerks’
 filing notes refer to numbered name letters and folder numbers; exactly one note
 is incorrect. Select the file matching three notes and flag the incorrect note.
-Generated truth patterns guarantee one solution. Feedback explains the number
-of matching notes, including why an all-true decoy fails. The retrieved file
+Two numbered steps separate file selection from marking a false statement. The
+review panel names the selected file; a red cross marks the chosen false note.
+Hovering, focusing or selecting a statement highlights its referenced code column
+and name letter without evaluating its truth for the player. Highlighted fields
+have padded labels; the selected false statement uses a geometrically centered cross.
+Generated truth patterns guarantee one solution. All invalid submissions show the same instruction-only feedback, without
+confirming whether the file or statement selection is correct. The retrieved file
 number and filing code are retained in the application’s in-memory records.
 
 Department 10 is Sustainability (the Energy tab). Restore the applicant’s
@@ -163,7 +181,7 @@ five copier strips also omit spaces, retaining their strip numbers for controls.
 
 The maze uses 225 walkable cells with thin walls between them, generated with a
 branching Prim frontier and four routes from a central mailroom. Collect the
-letters of the name in order, skipping spaces. Matching letters are interchangeable
+letters of the first name in order. Matching letters are interchangeable
 regardless of case, and have no ordinal labels. Each tile can be collected once.
 Pickups occupy dead ends, so every remaining letter stays reachable regardless
 of which matching tile was chosen. Pickups are distributed across the four
@@ -173,9 +191,9 @@ checked. Arrows, WASD and direction buttons travel to the next junction, turn or
 uncollected letter. Collecting the last letter enables submission immediately.
 The map can be enlarged on small screens.
 
-Recognition tiles, loose letters, cipher clues, stamp trays, archive records, maze
+Recognition tiles, loose letters, combination locks, stamp trays, archive records, maze
 layouts and carbon arrangements vary between applications. The name supplies the
-cipher codebook; the name and run seed determine the switchboard damage. Hints supply answers or an exact next step.
+encrypted file; the name and run seed determine the switchboard damage. Hints supply answers or an exact next step.
 Mistakes affect only the current department; local undo/restart controls are
 available where appropriate. The last screen is a certificate within the page,
 not a downloadable document. “Shred application” clears the current application.
@@ -198,7 +216,7 @@ without duplicating that wording.
 
 Run the dependency-free rule checks with `node --test tests/rules.test.cjs`.
 They verify name normalization, complete stamp trays and uniquely solvable archive deductions, the switchboard's
-unique solution, copier solvability, and name-keyed cipher decoding. An independent solver
+unique solution, copier solvability, and name-lock solvability. An independent solver
 checks 200 maze layouts with later pickups treated as walls, alongside reset,
 repeated-letter, Unicode and corridor-topology checks. Seeded generation checks
 verify replay, variation and independent department streams without ambient randomness.

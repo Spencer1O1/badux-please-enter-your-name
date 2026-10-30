@@ -1352,3 +1352,21 @@ footer {
     scroll-behavior: auto !important
   }
 }
+
+#queue-number.ticket-unissued { font: 12px/3.8 var(--mono); letter-spacing: 1px; }
+.ticket-dialog { padding: 14px; border: 0; background: transparent; width: min(380px, calc(100% - 24px)); max-height: calc(100% - 24px); }
+.ticket-dialog::backdrop { background: #242d2d70; }
+.ticket-dialog:focus, #ticket-title:focus { outline: none; }
+.issued-ticket { padding: 30px 25px; text-align: center; background: #fff8df; color: var(--ink); border-top: 5px solid var(--orange); box-shadow: 0 12px 35px #0004; mask-image: radial-gradient(circle at 0 71%, transparent 10px, #000 11px), radial-gradient(circle at 100% 71%, transparent 10px, #000 11px); mask-composite: intersect; }
+.issued-ticket .micro { line-height: 1.7; letter-spacing: 2px; }
+#ticket-title { margin: 24px 0 0; font: 11px var(--mono); letter-spacing: 2px; }
+#issued-ticket-number { display: block; padding: 6px 0 22px; border-bottom: 1px dashed #a9a38d; font: 84px/1.2 var(--mono); }
+#ticket-condition { max-width: 220px; margin: 22px auto; font: 12px/1.6 var(--sans); }
+.ticket-present .notice, .ticket-present .masthead, .ticket-present .intro, .ticket-present .office-note, .ticket-present .application, .ticket-present .receipt, .ticket-present footer, .ticket-present .queue { filter: blur(5px); transition: filter .2s; }
+.ticket-present.ticket-reveal .queue { filter: none; }
+.ticket-reveal .queue-screen { animation: ticket-glow .7s ease-out 2; }
+@keyframes ticket-glow { 35% { box-shadow: 0 0 0 5px #e2f06f70, 0 0 30px #b5cb64b0; border-color: var(--lime); } }
+@media (prefers-reduced-motion: reduce) {
+  .ticket-present .notice, .ticket-present .masthead, .ticket-present .intro, .ticket-present .office-note, .ticket-present .application, .ticket-present .receipt, .ticket-present footer, .ticket-present .queue { transition: none; }
+  .ticket-reveal .queue-screen { animation: none; }
+}

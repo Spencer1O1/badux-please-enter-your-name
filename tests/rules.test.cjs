@@ -28,7 +28,7 @@ test("run streams reproduce by seed, cleaned name and department, independently 
 test("seeded puzzle generation replays without ambient randomness and varies between runs", () => {
   const builders = [
     ["Evidence", R.makeNameEvidence], ["Recovery", (name, random) => R.shuffle(R.nameLetters(name), random)],
-    ["Secrecy", R.nameMemo], ["Stamps", (name, random) => {
+    ["Secrecy", R.makeNameLock], ["Stamps", (name, random) => {
       const { target, stamps } = R.makeNameStamps(name, random);
       return Array.from({ length: 5 }, () => R.makeStampTray(stamps, R.nameLetters(target)[0], random));
     }],
@@ -175,35 +175,28 @@ test("recognition has three exact matches, two typos and four distinct name deco
   }
 });
 
-test("name-keyed references decode six unknown letters from valid clue positions", () => {
-  const latin = R.letters("ABCDEFGHIJKLMNOPQRSTUVWXYZ");
-  assert.equal(R.decodeNameClue(["Z"], latin, { position: 0, offset: 1 }), "A");
-  assert.equal(R.decodeNameClue(["A"], latin, { position: 0, offset: -1 }), "Z");
-  assert.equal(R.decodeNameClue(["Y"], latin, { position: 0, offset: 5 }), "D");
-  assert.equal(R.decodeNameClue(["B"], latin, { position: 0, offset: -5 }), "W");
-  for (const name of names) {
-    for (let attempt = 0; attempt < 5; attempt++) {
-      const memo = R.nameMemo(name);
-      assert.equal(memo.book.join(""), name.toUpperCase().normalize("NFC").replace(/ /g, ""));
-      assert.equal(memo.clues.length, 6);
-      assert.equal(memo.encoded.split(" · ").length, 6);
-      assert.equal(R.letters(memo.word).length, 6);
-      assert.notEqual(memo.word, memo.book.join(""), "the reference must not just be the name");
-      for (const clue of memo.clues) {
-        assert.ok(clue.position >= 0 && clue.position < memo.book.length);
-        assert.ok(Number.isInteger(clue.offset) && clue.offset >= -5 && clue.offset <= 5);
+test("four-digit file locks have one reachable combination and preserve every name letter", () => {
+  for (const name of [...names, "Straße Suppe", "क्ष्ण क्ष्ण"]) for (let seed = 0; seed < 30; seed++) {
+    const puzzle = R.makeNameLock(name, R.createRandom(seed, name, "Secrecy"));
+    assert.equal(puzzle.encoded.length, 4);
+    assert.equal(puzzle.combination.length, 4);
+    const target = R.nameLetters(puzzle.target);
+    assert.equal(puzzle.encoded.reduce((sum, group) => sum + R.letters(group).length, 0), target.length);
+    let position = 0;
+    const decoded = puzzle.encoded.map((group, i) => {
+      const expected = target.slice(position, position + R.letters(group).length).join("");
+      position += R.letters(group).length;
+      const matches = [];
+      for (let digit = 0; digit < 10; digit++) {
+        const value = R.letters(group).map(char => puzzle.alphabet[(puzzle.alphabet.indexOf(char) + digit) % puzzle.alphabet.length]).join("");
+        if (value === expected) matches.push(digit);
       }
-      // Solve directly from the printed alphabet and codebook, independently of the helper.
-      const decoded = memo.clues.map(({ position, offset }) => {
-        const index = memo.alphabet.indexOf(memo.book[position]);
-        return memo.alphabet[(index + offset + memo.alphabet.length) % memo.alphabet.length];
-      }).join("");
-      assert.equal(decoded, memo.word);
-      assert.ok(memo.clues.some(clue => clue.offset <= -2));
-      assert.ok(memo.clues.some(clue => clue.offset === 0));
-      assert.ok(memo.clues[0].offset >= 2, "the worked example demonstrates a larger alphabet shift");
-      assert.equal(memo.encoded, memo.clues.map(R.nameClueLabel).join(" · "));
-    }
+      if (group) assert.deepEqual(matches, [puzzle.combination[i]]);
+      return expected;
+    }).join("");
+    assert.equal(decoded, target.join(""));
+    assert.equal(R.lockGroups(puzzle, puzzle.combination).join(""), decoded);
+    assert.notEqual(R.lockGroups(puzzle, [0, 0, 0, 0]).join(""), decoded);
   }
 });
 
@@ -214,13 +207,16 @@ test("stamp trays always show twelve unique choices including the next required 
     const required = R.nameLetters(target);
     for (const char of required) assert.ok(stamps.includes(char), char);
     assert.equal(new Set(stamps).size, stamps.length);
-    assert.ok(stamps.length >= 12);
+    assert.ok(stamps.length > 0);
     assert.ok(!stamps.includes(" "));
     for (const next of [...required, undefined]) {
       const tray = R.makeStampTray(stamps, next);
       assert.equal(tray.length, 12);
       assert.equal(new Set(tray).size, 12);
-      assert.ok(tray.every(char => stamps.includes(char)));
+      assert.ok(tray.every(char => char === char.toUpperCase() && /\p{L}/u.test(char)));
+      assert.ok(tray.filter(char => stamps.includes(char)).length >= Math.min(8, stamps.length));
+      const nextTray = R.makeStampTray(stamps, next, Math.random, tray);
+      assert.ok(nextTray.some(char => !tray.includes(char)), "each shuffle must bring in a new letter");
       if (next !== undefined) assert.ok(tray.includes(next), "a long name must never lose its next stamp");
     }
   }
@@ -326,8 +322,8 @@ test("200 generated mazes remain solvable when matching letters are collected in
     assert.equal(maze.width, 15);
     assert.equal(maze.start, 112);
     assert.equal(maze.passages[maze.start].length, 4);
-    assert.equal(new Set(maze.pickups.map(piece => piece.cell)).size, R.nameLetters(name).length);
-    assert.equal(maze.pickups.map(piece => piece.char).join(""), name.replace(/ /g, ""));
+    assert.equal(new Set(maze.pickups.map(piece => piece.cell)).size, R.nameLetters(name.split(" ")[0]).length);
+    assert.equal(maze.pickups.map(piece => piece.char).join(""), name.split(" ")[0]);
     assert.ok(maze.pickups.every(piece => piece.char !== " " && maze.passages[piece.cell].length === 1), "every letter is in a dead end, never blocking transit");
     let state = { position: maze.start, collected: 0, found: [] };
     for (const expected of maze.pickups) {
@@ -457,4 +453,42 @@ test("every initial stamp has one answer and can be solved by row/column deducti
   assert.deepEqual(R.sealInitials("Élodie OTurnip"), ["É", "O"]);
   assert.deepEqual(R.sealInitials("李小龙 王小明"), ["李", "王"]);
   assert.equal(R.sealGlyph("É"), null, "unsupported stencil letters use the browser glyph renderer");
+});
+
+
+test("file assessment text uses the matching name group's Caesar shift", () => {
+  const puzzle = { alphabet: R.letters("ABCDEFGHIJKLMNOPQRSTUVWXYZ"), combination: [2, 3, 4, 5] };
+  assert.equal(R.lockText(puzzle, "Abc XYZ!", 0, 0), "Yza VWX!");
+  assert.equal(R.lockText(puzzle, "Abc XYZ!", 1, 0), "Xyz UVW!");
+  assert.equal(R.lockText(puzzle, "Abc XYZ!", 0, 3), "Bcd YZA!");
+  for (let group = 0; group < 4; group++) {
+    assert.equal(R.lockText(puzzle, "Any editable sentence. 123!", group, puzzle.combination[group]), "Any editable sentence. 123!");
+  }
+});
+
+
+test("assessment lines interleave four cipher assignments and require every dial", () => {
+  const puzzle = { alphabet: R.letters("ABCDEFGHIJKLMNOPQRSTUVWXYZ"), combination: [1, 2, 3, 4] };
+  const text = "ABCDEFGHIJKLMNOP";
+  for (let row = 0; row < 4; row++) {
+    const solved = R.lockAssessment(puzzle, text, row, puzzle.combination);
+    assert.deepEqual(solved.map(part => part.dial), Array.from({ length: text.length }, (_, column) => (row + column) % 4));
+    assert.equal(solved.map(part => part.text).join(""), text);
+    for (let dial = 0; dial < 4; dial++) {
+      const wrong = [...puzzle.combination]; wrong[dial]++;
+      const shifted = R.lockAssessment(puzzle, text, row, wrong);
+      shifted.forEach((part, column) => {
+        if (part.dial === dial) assert.notEqual(part.text, solved[column].text);
+        else assert.equal(part.text, solved[column].text);
+      });
+    }
+  }
+});
+
+
+test("assessment cipher counts letters without consuming spaces or punctuation", () => {
+  const puzzle = { alphabet: R.letters("ABCDEFGHIJKLMNOPQRSTUVWXYZ"), combination: [1, 2, 3, 4] };
+  const parts = R.lockAssessment(puzzle, "A B! C, D. E", 1, [0, 0, 0, 0]);
+  assert.deepEqual(parts.filter(part => part.dial !== null).map(part => part.dial), [1, 2, 3, 0, 1]);
+  assert.equal(parts.filter(part => part.dial === null).map(part => part.text).join(""), " ! , . ");
 });

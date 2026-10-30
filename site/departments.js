@@ -2,7 +2,7 @@
 (() => {
   "use strict";
   const R = NameOffice.rules;
-  const reference = `<div class="reference-name"><small>NAME ON FILE</small><span class="applicant-name"></span></div>`;
+  const reference = `<div class="reference-name"><small>APPLICANT NAME</small><span class="applicant-name"></span></div>`;
   const input = (label, id = "name-input", placeholder = "") => `<label class="field-label" for="${id}">${label}</label>
     <input class="name-field" id="${id}" type="text" placeholder="${placeholder}" maxlength="160" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="instructions message">`;
   const output = (id, label) => `<div class="puzzle-readout"><span class="micro">${label}</span><output id="${id}" aria-live="polite"></output></div>`;
@@ -29,31 +29,12 @@
     });
   }
 
-  const cipherReference = `<div class="cipher-book"><span class="micro">NAME KEY / SPACES OMITTED</span><div class="name-index" aria-label="Numbered name key"></div></div><div class="cipher-memo"><span class="micro">ENCRYPTED REFERENCE</span><div class="cipher-clues" id="cipher-text"></div></div><p class="cipher-example" id="cipher-example"></p><p class="tiles-caption">Offsets run from −5 to +5. Count forwards or backwards; the alphabet wraps.</p><details class="cipher-alphabet"><summary>Alphabet</summary><p id="cipher-alphabet"></p></details>`;
-
-  function renderCipher(root, memo) {
-    nameIndex(root, memo.book.join(""));
-    memo.clues.forEach(clue => {
-      const token = document.createElement("span");
-      token.className = "cipher-clue";
-      token.dataset.position = clue.position;
-      token.dataset.offset = clue.offset;
-      token.textContent = R.nameClueLabel(clue);
-      token.setAttribute("aria-label", `Position ${clue.position + 1}, ${clue.offset === 0 ? "unchanged" : Math.abs(clue.offset) + " alphabet steps " + (clue.offset > 0 ? "forwards" : "backwards")}`);
-      root.querySelector("#cipher-text").append(token);
-    });
-    const first = memo.clues[0];
-    text(root, "#cipher-example", `${R.nameClueLabel(first)}: ${memo.book[first.position]} → ${R.decodeNameClue(memo.book, memo.alphabet, first)}`);
-    text(root, "#cipher-alphabet", memo.alphabet.join(" "));
-    root.querySelector(".cipher-alphabet").open = memo.alphabet.length > 26;
-  }
-
   const departments = [
     {
       label: "Intake", department: "INITIAL INTAKE", title: "Let's get started.",
       paperwork: { hold: "Name required.", approval: "Name chosen." },
       description: "Enter exactly two names: first and last. 6–20 letters total.",
-      body: input("Your entirely fictional name", "name-input", "e.g. Dr. Doofenshmirtz") + `<p class="deadline-rule">Make sure to finish the paperwork before your number is called!</p>`,
+      body: input("Your entirely fictional name", "name-input", "e.g. Dr. Doofenshmirtz") + `<p class="deadline-rule">Finish before your number is called.</p>`,
       action: "Begin paperwork", footnoteLabel: "NO ID REQUIRED", footnote: "(We wouldn't know what to do with it)",
       note: { text: "First and last name only. A pretend one is ideal.", author: "Management, 1987" },
       mount: ({ root }) => ({
@@ -81,7 +62,7 @@
       action: "Clear customs", footnote: "Your vowels will be returned. Probably.",
       note: { text: "They took my vowels. I can still remember my childhood, but I can no longer pronounce it.", author: "Applicant 582, partially released" },
       mount: ({ root, applicant }) => ({
-        validate: () => R.acceptsCustoms(applicant, readName(root)) ? "" : "A vowel slipped through, or another letter went missing.",
+        validate: () => R.acceptsCustoms(applicant, readName(root)) ? "" : "Remove the vowels from your name.",
         hint: () => "Try: " + R.customs(applicant)
       })
     },
@@ -119,8 +100,8 @@
     {
       label: "Recovery", department: "DOCUMENT SALVAGE", title: "The office shredder found your name.",
       paperwork: { hold: "Shredded name must be restored.", approval: "Document fragments restored." },
-      description: "Collect your name in order. Wrong letters reset. Spaces are automatic.",
-      body: `<div class="department-notice">KEYBOARD TEXT ENTRY: OUT OF SERVICE</div>` + reference + output("recovered-name", "RECOVERED SO FAR") + `<div class="letter-spill" role="group" aria-label="Scattered letters"></div><div class="tool-row"><button class="text-button" type="button" id="undo-letter">Put last letter back ↶</button><button class="text-button" type="button" id="clear-letters">Drop everything ↺</button></div>`,
+      description: "Collect your name in order.",
+      body: reference + output("recovered-name", "RECOVERED SO FAR") + `<div class="letter-spill" role="group" aria-label="Scattered letters"></div><div class="tool-row"><button class="text-button" type="button" id="undo-letter">Put last letter back ↶</button><button class="text-button" type="button" id="clear-letters">Drop everything ↺</button></div>`,
       action: "Reassemble my application", footnote: "Tab + Space can pick up letters, too.",
       note: { text: "My application fell into the shredder. Apparently I am responsible for putting myself back together.", author: "Applicant 714, unassembled" },
       mount({ root, applicant, announce, random, appearanceRandom }) {
@@ -148,7 +129,7 @@
             if (correct) picked.push(index);
             else picked.length = 0;
             update();
-            announce(correct ? value() === target ? "Name recovered." : "" : "Wrong letter. Start again.", correct ? "" : "error");
+            announce(correct ? value() === target ? "Name recovered." : "" : "Collect your name in order.", correct ? "" : "error");
             (buttons.find(node => !node.hidden) || root.querySelector("[type=submit]")).focus({ preventScroll: true });
           });
           buttons.push(piece);
@@ -160,69 +141,137 @@
         update();
         return {
           validate: () => value() === target ? "" : "Keep collecting your name’s letters.",
-          hint: () => value() === target ? "Name recovered. Submit." : `Next: “${chars[picked.length]}”.`
+          hint: () => value() === target ? "Name recovered." : `Next: “${chars[picked.length]}”.`
         };
       }
     },
     {
-      label: "Secrecy", department: "CIPHER REGISTRY", title: "Your name is the key.",
-      paperwork: { hold: "Reference must be decoded.", approval: "Reference declassified." },
-      description: "Decode the six-letter reference.",
-      body: cipherReference + input("Decoded reference", "reference-input", "SIX LETTERS"),
-      action: "Unseal reference", footnote: "Nothing is ever just your name.",
-      note: { text: "I used my name as a key. It opened a file about me. This feels like a conflict of interest.", author: "Applicant 608, declassified" },
-      mount({ root, applicant, records, random }) {
-        const memo = R.nameMemo(applicant, random);
-        renderCipher(root, memo);
-        records.memo = memo;
+      label: "Secrecy", department: "CONFIDENTIAL RECORDS", title: "Your file is locked.",
+      paperwork: { hold: "Confidential file must be decrypted.", approval: "Confidential file unlocked." },
+      description: "Decrypt your file to attach it to your paperwork.",
+      body: reference + `<div class="file-lock"><span class="micro">CONFIDENTIAL / APPLICANT ACCESS ONLY</span><div class="lock-wheels" role="group" aria-label="Four-digit combination lock"></div><div class="file-assessment"><span class="micro">INTERNAL ASSESSMENT</span><ol class="assessment-lines" aria-live="polite" aria-label="Confidential assessment"></ol></div></div>`,
+      action: "Open my file", footnote: "Your identity is classified. From you.",
+      note: { text: "They secured my file against unauthorized access. Apparently that includes me.", author: "Applicant 608, classified" },
+      mount({ root, applicant, records, random, announce }) {
+        const puzzle = R.makeNameLock(applicant, random);
+        const dials = [0, 0, 0, 0];
+        const wheels = [];
+        const assessment = [
+          "Applicant appears to exist.",
+          "Name lacks an official stamp.",
+          "Existence remains provisional.",
+          "Refer to Stamp Duty."
+        ];
+        const lines = assessment.map(message => {
+          const line = document.createElement("li");
+          for (const char of R.letters(message)) line.append(document.createElement("span"));
+          root.querySelector(".assessment-lines").append(line);
+          return line;
+        });
+        const value = () => R.lockGroups(puzzle, dials).join("");
+        function update() {
+          const groups = R.lockGroups(puzzle, dials);
+          wheels.forEach((wheel, i) => {
+            wheel.querySelector(".lock-letters").textContent = groups[i] || "—";
+            wheel.querySelector(".lock-digit").textContent = dials[i];
+            wheel.dataset.value = dials[i];
+          });
+          lines.forEach((line, i) => {
+            R.lockAssessment(puzzle, assessment[i], i, dials).forEach((part, column) => {
+              const span = line.children[column];
+              span.dataset.dial = part.dial === null ? "" : part.dial;
+              if (span.textContent !== part.text) span.textContent = part.text;
+            });
+          });
+          announce("");
+        }
+        puzzle.encoded.forEach((group, i) => {
+          const wheel = document.createElement("div");
+          wheel.className = "lock-wheel";
+          const display = document.createElement("output");
+          display.className = "lock-letters";
+          display.setAttribute("aria-label", `File section ${i + 1}`);
+          const up = button("▲", "lock-arrow");
+          const down = button("▼", "lock-arrow");
+          up.setAttribute("aria-label", `Increase dial ${i + 1}`);
+          down.setAttribute("aria-label", `Decrease dial ${i + 1}`);
+          up.disabled = down.disabled = !group;
+          const digit = document.createElement("output");
+          digit.className = "lock-digit";
+          digit.setAttribute("aria-label", `Dial ${i + 1}`);
+          const turn = delta => { dials[i] = (dials[i] + delta + 10) % 10; update(); };
+          up.addEventListener("click", () => turn(1));
+          down.addEventListener("click", () => turn(-1));
+          wheel.addEventListener("keydown", event => {
+            if (group && ["ArrowUp", "ArrowDown"].includes(event.key)) {
+              event.preventDefault(); turn(event.key === "ArrowUp" ? 1 : -1);
+            }
+          });
+          wheel.append(display, up, digit, down);
+          wheels.push(wheel);
+          root.querySelector(".lock-wheels").append(wheel);
+        });
+        update();
         return {
-          validate: () => readName(root, "reference-input").replace(/ /g, "").toUpperCase().normalize("NFC") === memo.word ? "" : "Reference mismatch. Check each clue.",
-          hint: () => `Decoded reference: ${memo.word}.`
+          validate: () => {
+            if (value() !== R.nameLetters(puzzle.target).join("")) {
+              dials.fill(0); update();
+              return "Decrypt your file.";
+            }
+            records.lock = { combination: [...dials] };
+            return "";
+          },
+          hint: () => `Combination: ${puzzle.combination.join(" ")}.`
         };
       }
     },
     {
       label: "Stamps", department: "STAMP DUTY", title: "The clerk has mixed up the stamps.",
       paperwork: { hold: "Stamped form required.", approval: "Stamped form filed." },
-      description: "Stamp your name in order. Wrong stamps reset. The tray reshuffles.",
-      body: `<div class="reference-name"><small>NAME TO STAMP</small><span id="stamp-target"></span></div>` + output("stamped-name", "STAMPED SO FAR") + `<div class="stamp-tray" role="group" aria-label="Name stamps"></div><p class="tiles-caption" id="stamp-next" aria-live="polite"></p><button class="text-button" type="button" id="reset-stamps">Start over ↺</button>`,
+      description: "Stamp your name.",
+      body: reference + output("stamped-name", "STAMPED SO FAR") + `<div class="stamp-tray" role="group" aria-label="Name stamps"></div><p class="tiles-caption" id="stamp-next" aria-live="polite"></p><button class="text-button" type="button" id="reset-stamps">Start over ↺</button>`,
       action: "File the stamped form", footnote: "Ink is a renewable inconvenience.",
       note: { text: "I found the right stamp. They moved it. I no longer trust the alphabet.", author: "Applicant 291, still reaching" },
       mount({ root, applicant, announce, random }) {
-        const { target, stamps } = R.makeNameStamps(applicant, random);
+        const { target, stamps } = R.makeNameStamps(applicant);
         const chars = R.letters(target);
         const ink = [];
         const buttons = [];
         let arrangement = R.makeStampTray(stamps, chars[0], random);
-        text(root, "#stamp-target", target);
         function update() {
           text(root, "#stamped-name", ink.join("") || "…");
           text(root, "#stamp-next", ink.length < chars.length ? `Next: “${chars[ink.length]}”` : "Name stamped.");
           buttons.forEach((node, i) => {
             const char = arrangement[i];
             node.dataset.character = char;
-            node.textContent = char;
+            node.querySelector(".stamp-letter").textContent = char;
             node.setAttribute("aria-label", `Stamp ${char}`);
             node.disabled = ink.length === chars.length;
             node.classList.remove("hinted-stamp");
           });
         }
         function reshuffle() {
-          const next = R.makeStampTray(stamps, chars[ink.length], random);
+          const next = R.makeStampTray(stamps, chars[ink.length], random, arrangement);
           if (next.every((char, i) => char === arrangement[i])) next.push(next.shift());
           arrangement = next;
         }
         for (let i = 0; i < 12; i++) {
           const node = button("", "letter-stamp");
+          const body = document.createElement("span");
+          body.className = "stamp-body";
+          const letter = document.createElement("span");
+          letter.className = "stamp-letter";
+          body.append(letter);
+          node.append(body);
           node.addEventListener("click", () => {
             const char = node.dataset.character;
             if (char === chars[ink.length]) {
               ink.push(char);
               while (chars[ink.length] === " ") ink.push(" ");
-              announce(ink.length === chars.length ? "Name stamped. Submit." : "Stamped.");
+              announce(ink.length === chars.length ? "Name stamped." : "");
             } else {
               ink.length = 0;
-              announce("Wrong stamp. Start again.", "error");
+              announce("Stamp your name in order.", "error");
             }
             reshuffle();
             update();
@@ -235,14 +284,14 @@
           ink.length = 0;
           reshuffle();
           update();
-          announce("Fresh ink. Start again.");
+          announce("Stamps reset.");
         });
         update();
         return {
           validate: () => ink.join("") === target ? "" : "Stamp the rest of your name.",
           hint: () => {
             const next = chars[ink.length];
-            if (next === undefined) return "Name stamped. Submit.";
+            if (next === undefined) return "Name stamped.";
             buttons.find(node => node.dataset.character === next).classList.add("hinted-stamp");
             return `Use the highlighted “${next}” stamp.`;
           }
@@ -252,8 +301,8 @@
     {
       label: "Archive", department: "MISFILED APPLICATIONS", title: "We’ve misfiled your application.",
       paperwork: { hold: "Misfiled application must be found.", approval: ({ archive }) => `Application file ${archive.number} retrieved.` },
-      description: "Find your file. Exactly one filing note is wrong.",
-      body: reference + `<div class="name-index" aria-label="Numbered name letters, spaces omitted"></div><p class="micro archive-label">ARCHIVED APPLICATIONS / SELECT YOUR FILE</p><div class="archive-files" role="group" aria-label="Archive files"></div><p class="micro archive-label">FLAG THE INCORRECT FILING NOTE</p><div class="archive-clerks" role="group" aria-label="Clerk statements"></div>`,
+      description: "Three statements fit your file. One is false.",
+      body: reference + `<div class="name-index" aria-label="Numbered name letters, spaces omitted"></div><p class="archive-step"><b>1</b> Choose your file</p><div class="archive-files" role="group" aria-label="Archive files"></div><div class="archive-review"><p class="archive-step"><b>2</b> Mark the false statement</p><output class="archive-context" id="archive-context" aria-live="polite">No file selected</output><div class="archive-clerks" role="group" aria-label="Clerk statements"></div></div>`,
       action: "Retrieve my application", footnote: "Filed under somebody else, probably.",
       note: { text: "They filed my application under someone else. Now I need my application to prove I am not them.", author: "Applicant 337, identity misfiled" },
       mount({ root, applicant, records, announce, random }) {
@@ -289,13 +338,21 @@
           node.addEventListener("click", () => {
             selectedFile = file.number;
             select(fileButtons, node);
+            text(root, "#archive-context", `File ${file.number} · Code ${file.seal.join(" · ")}`);
           });
           root.querySelector(".archive-files").append(node);
           return node;
         });
+        function linkFields(clue) {
+          fileButtons.forEach(node => {
+            node.querySelector("small").classList.toggle("archive-linked", clue?.slot === null);
+            node.querySelectorAll("strong span").forEach((slot, i) => slot.classList.toggle("archive-linked", clue?.slot === i));
+          });
+          root.querySelectorAll(".name-index > span").forEach((node, i) => node.classList.toggle("archive-linked", clue?.position === i));
+        }
         const clerkButtons = puzzle.clues.map((clue, index) => {
           const statement = clue.slot === null ? "Your file number is even."
-            : `The code’s ${["first", "middle", "last"][clue.slot]} letter matches name position ${clue.position + 1}.`;
+            : `Code letter ${clue.slot + 1} = name letter ${clue.position + 1}`;
           const node = button("", "archive-clerk");
           node.dataset.slot = clue.slot ?? "number";
           if (clue.position !== undefined) node.dataset.position = clue.position;
@@ -304,21 +361,32 @@
           label.textContent = `Clerk ${"ABCD"[index]}`;
           const claim = document.createElement("span");
           claim.textContent = statement;
-          node.append(label, claim);
+          const mark = document.createElement("span");
+          mark.className = "archive-verdict";
+          mark.textContent = "×";
+          mark.setAttribute("aria-hidden", "true");
+          node.setAttribute("aria-label", `Mark Clerk ${"ABCD"[index]}’s statement false: ${statement}`);
+          node.append(label, claim, mark);
+          node.addEventListener("mouseenter", () => linkFields(clue));
+          node.addEventListener("focus", () => linkFields(clue));
+          const restoreLink = () => linkFields(selectedLiar === null ? null : puzzle.clues[selectedLiar]);
+          node.addEventListener("mouseleave", restoreLink);
+          node.addEventListener("blur", restoreLink);
           node.addEventListener("click", () => {
             selectedLiar = index;
             select(clerkButtons, node);
+            linkFields(clue);
           });
           root.querySelector(".archive-clerks").append(node);
           return node;
         });
         return {
           validate: () => {
-            if (selectedFile === null || selectedLiar === null) return "Select your file and flag one incorrect note.";
+            const error = "Choose a file that matches three statements and mark the false one.";
+            if (selectedFile === null || selectedLiar === null) return error;
             const file = puzzle.files.find(file => file.number === selectedFile);
             const matching = R.archiveTruth(file, puzzle.clues, applicant).filter(Boolean).length;
-            if (matching !== 3) return `File ${file.number} matches ${matching} notes. Your file must match exactly 3.`;
-            if (selectedLiar !== puzzle.liar) return `File ${file.number} fits. Flag its one mismatched note.`;
+            if (matching !== 3 || selectedLiar !== puzzle.liar) return error;
             records.archive = { number: file.number, code: file.seal.join(" · ") };
             return "";
           },
@@ -329,11 +397,13 @@
     {
       label: "Transit", department: "INTERNAL MAIL", title: "Internal mail has scattered your name.",
       paperwork: { hold: "Name must pass through internal mail.", approval: "Internal delivery confirmed." },
-      description: "Collect your name in order. Any matching letter counts. Wrong letters reset.",
-      body: reference + output("maze-name", "NAME RECOVERED") + `<p class="stamp-passport" id="maze-next" aria-live="polite"></p><div class="maze-viewport"><div class="desk-maze" tabindex="0" role="group" aria-label="Name maze, fifteen rows of fifteen. Click along a corridor, or use arrow keys to the next junction." aria-describedby="maze-next maze-controls"></div></div><div class="maze-tools"><button class="text-button" id="maze-zoom" type="button" aria-pressed="false">Enlarge map ＋</button></div><p class="tiles-caption" id="maze-controls">Spaces are automatic. Tap along a clear row or column. Arrows / WASD: next junction.</p><div class="maze-directions" role="group" aria-label="Travel to next junction"><button class="secondary-button" data-direction="up" type="button" aria-label="Travel up to next junction">↑</button><button class="secondary-button" data-direction="left" type="button" aria-label="Travel left to next junction">←</button><button class="secondary-button" data-direction="down" type="button" aria-label="Travel down to next junction">↓</button><button class="secondary-button" data-direction="right" type="button" aria-label="Travel right to next junction">→</button></div><button class="text-button" id="restart-maze" type="button">Start again from the center ↺</button>`,
+      description: "Collect your first name in order.",
+      body: `<div class="reference-name"><small>FIRST NAME</small><span id="maze-target"></span></div>` + output("maze-name", "NAME RECOVERED") + `<p class="stamp-passport" id="maze-next" aria-live="polite"></p><div class="maze-viewport"><div class="desk-maze" tabindex="0" role="group" aria-label="Name maze, fifteen rows of fifteen. Click along a corridor, or use arrow keys to the next junction." aria-describedby="maze-next maze-controls"></div></div><div class="maze-tools"><button class="text-button" id="maze-zoom" type="button" aria-pressed="false">Enlarge map ＋</button></div><p class="tiles-caption" id="maze-controls">Tap a clear row or column. Or use arrows / WASD.</p><div class="maze-directions" role="group" aria-label="Travel to next junction"><button class="secondary-button" data-direction="up" type="button" aria-label="Travel up to next junction">↑</button><button class="secondary-button" data-direction="left" type="button" aria-label="Travel left to next junction">←</button><button class="secondary-button" data-direction="down" type="button" aria-label="Travel down to next junction">↓</button><button class="secondary-button" data-direction="right" type="button" aria-label="Travel right to next junction">→</button></div><button class="text-button" id="restart-maze" type="button">Start over ↺</button>`,
       action: "Confirm delivery", footnote: "The floor plan is legally a filing system.",
       note: { text: "I started in the middle. Every corridor led to more of me. I am beginning to suspect the building has taken this personally.", author: "Applicant 805, still finding herself" },
       mount({ root, applicant, announce, random }) {
+        const firstName = R.normalizeName(applicant).split(" ")[0];
+        text(root, "#maze-target", firstName);
         const maze = R.makeNameMaze(applicant, random);
         let state = { position: maze.start, collected: 0, found: [] };
         const board = root.querySelector(".desk-maze");
@@ -356,9 +426,9 @@
           board.dataset.collected = state.collected;
           board.dataset.found = JSON.stringify(state.found);
           submit.disabled = state.collected !== maze.pickups.length;
-          text(root, "#maze-name", R.formatNameProgress(applicant, maze.pickups.slice(0, state.collected).map(piece => piece.char).join("")) || "…");
+          text(root, "#maze-name", maze.pickups.slice(0, state.collected).map(piece => piece.char).join("") || "…");
           const next = maze.pickups[state.collected];
-          text(root, "#maze-next", next ? `${state.collected} / ${maze.pickups.length} recovered. Next: “${glyph(next.char)}”.` : "Name recovered. Submit your paperwork.");
+          text(root, "#maze-next", next ? `${state.collected} / ${maze.pickups.length} recovered. Next: “${glyph(next.char)}”.` : "Name recovered.");
           cells.forEach((node, i) => {
             node.classList.remove("hinted-cell");
             const piece = pieces.get(i);
@@ -373,12 +443,10 @@
           });
         }
         function move(next, focusBoard = true) {
-          const before = state.collected;
           state = R.mazeMove(maze, state, next);
-          if (state.kind === "wrong") announce("Wrong letter. Back to the center. All letters restored.", "error");
+          if (state.kind === "wrong") announce("Collect your first name in order.", "error");
           else if (state.kind === "blocked") announce("Choose a clear row or column.", "error");
-          else if (state.kind === "complete") announce("Name recovered. Submit your paperwork.");
-          else if (state.collected > before) announce(`Letter ${state.collected} recovered.`);
+          else if (state.kind === "complete") announce("Name recovered.");
           else announce("");
           update();
           followPlayer();
@@ -426,14 +494,14 @@
           state = { position: maze.start, collected: 0, found: [] };
           update();
           followPlayer();
-          announce("Back to the center. All pieces restored.");
+          announce("Maze reset.");
         });
         update();
         return {
           validate: () => state.collected === maze.pickups.length ? "" : "Collect every piece in order.",
           hint: () => {
             const next = maze.pickups[state.collected];
-            if (!next) return "Name recovered. Submit.";
+            if (!next) return "Name recovered.";
             const path = maze.pickups.filter(piece => !state.found.includes(piece.cell) && piece.char.toUpperCase() === next.char.toUpperCase())
               .map(piece => R.mazePath(maze, state.position, piece.cell)).sort((a, b) => a.length - b.length)[0];
             let target = path[0];
@@ -512,8 +580,7 @@
         update();
         return {
           validate: () => {
-            if (on.size > allowance) return "Circuit allowance exceeded. Release a circuit.";
-            if (R.powerState(puzzle, on) !== puzzle.target) return "Nameplate incomplete. Light every section.";
+            if (on.size > allowance || R.powerState(puzzle, on) !== puzzle.target) return "Light every section within the circuit allowance.";
             records.power = [...on].sort((a, b) => a - b);
             return "";
           },
@@ -579,10 +646,11 @@
       }
     },
     {
+      focusTarget: ".seal-cell:not(:disabled)",
       label: "Approval", department: "SELF-AUTHORIZATION", title: "Approve your own approval.",
       paperwork: { hold: "Personal seal required.", approval: "Approval seal stamped." },
       description: "Ink your initials. Numbers count consecutive filled squares.",
-      body: reference + `<p class="seal-example"><span>2 1</span> → <b>■■ □ ■</b><small>Leave at least one blank between runs.</small></p><div class="seal-tools" role="group" aria-label="Seal tools"><button type="button" class="secondary-button" id="seal-ink" aria-pressed="true">Ink</button><button type="button" class="secondary-button" id="seal-blank" aria-pressed="false">Mark blank ×</button><button type="button" class="text-button" id="seal-undo">Undo ↶</button><button type="button" class="text-button" id="seal-reset">Start over ↺</button></div><div class="seal-pair"></div><p class="tiles-caption">Tap or drag to ink. Right-click marks blanks. Fixed squares are already checked.</p>`,
+      body: reference + `<p class="seal-example"><span>2 1</span> → <b>■■ □ ■</b><small>Leave at least one blank between runs.</small></p><div class="seal-tools" role="group" aria-label="Seal tools"><button type="button" class="secondary-button" id="seal-ink" aria-pressed="true">Ink</button><button type="button" class="secondary-button" id="seal-blank" aria-pressed="false">Mark blank ×</button><button type="button" class="text-button" id="seal-undo">Undo ↶</button><button type="button" class="text-button" id="seal-reset">Start over ↺</button></div><div class="seal-pair"></div><p class="tiles-caption">Tap or drag to ink. Right-click marks blanks.</p>`,
       action: "Stamp my approval", footnote: "The final authority was you all along.",
       note: { text: "After eleven departments, they asked who had authorized me. I pointed at myself. They handed me a stamp.", author: "Applicant 729, promoted without consent" },
       mount({ root, applicant, records, announce, random }) {
@@ -630,7 +698,7 @@
             columnClues[i].forEach((node, col) => node.classList.toggle("satisfied", R.inkRuns(Array.from({ length: puzzle.height }, (_, row) => Number(cells[i][row * puzzle.width + col] === 1))).join(",") === puzzle.columns[col].join(",")));
           });
           root.querySelector("#seal-undo").disabled = !history.length;
-          announce(ready() ? "Seal ready. Stamp your approval." : "");
+          announce(ready() ? "Seal ready." : "");
         }
         function paint(i, cell, value) {
           if (puzzles[i].givens[cell] !== null) return;
@@ -723,8 +791,7 @@
         update();
         return {
           validate: () => {
-            const wrong = puzzles.findIndex((puzzle, i) => !R.sealComplete(puzzle, cells[i]));
-            if (wrong >= 0) { boards[wrong].setAttribute("aria-invalid", "true"); return "Fill the ink pattern to match every row and column count."; }
+            if (!ready()) return "Fill the ink pattern to match every row and column count.";
             records.seal = { initials, glyphs: puzzles.map((puzzle, i) => Array.from({ length: puzzle.height }, (_, row) => cells[i].slice(row * puzzle.width, (row + 1) * puzzle.width).map(value => Number(value === 1)))) };
             return "";
           },
@@ -736,7 +803,7 @@
                 return `${i === 0 ? "First" : "Last"} initial: ${puzzles[i].target[cell] ? "ink" : "clear"} row ${Math.floor(cell / puzzles[i].width) + 1}, column ${cell % puzzles[i].width + 1}.`;
               }
             }
-            return "Seal ready. Stamp your approval.";
+            return "Seal ready.";
           }
         };
       }
