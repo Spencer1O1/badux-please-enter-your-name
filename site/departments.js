@@ -634,7 +634,7 @@
         const panel = root.querySelector(".power-panel");
         const wires = root.querySelector(".power-wires");
         const switches = [];
-        const colors = ["#72c8c1", "#edb75c", "#8cbcf0", "#d89ab8", "#b9a1ed", "#b2ca6a"];
+        const colors = ["#397d78", "#a1742d", "#527da6", "#a15d7c", "#7f69a2", "#758841"];
         let linked = null;
         const on = new Set();
         const lamps = [];
