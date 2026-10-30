@@ -43,7 +43,7 @@ test("seeded puzzle generation replays without ambient randomness and varies bet
         const puzzle = build(name, R.createRandom(seed, name, department));
         assert.deepEqual(build(name, R.createRandom(seed, name, department)), puzzle, `${department} must replay exactly`);
         if (name === names[0]) variants.add(JSON.stringify(puzzle));
-        if (department === "Energy") assert.ok([3, 4].includes(R.powerSolution(puzzle).length));
+        if (department === "Energy") assert.equal(R.powerSolution(puzzle).length, 3);
         if (department === "Carbon") assert.equal(R.copySolution(puzzle.start, puzzle.target).length, 4);
       }
       assert.ok(variants.size > 1, `${department} must vary even when the name is unchanged`);
@@ -260,7 +260,7 @@ test("the AAA BBB archive fixture resolves to File 78 and Clerk B with letter-on
   assert.deepEqual(R.archiveTruth(files.at(-1), clues, "AAA BBB"), [true, true, true, true]);
 });
 
-test("name switchboards have exactly one solution and require three or four switches", () => {
+test("name switchboards have exactly one solution and require three switches", () => {
   const patterns = new Set();
   for (const name of names) {
     const puzzle = R.makeNamePower(name);
@@ -273,7 +273,7 @@ test("name switchboards have exactly one solution and require three or four swit
       if (R.powerState(puzzle, on) === puzzle.target) solutions.push(on);
     }
     assert.equal(solutions.length, 1);
-    assert.ok([3, 4].includes(solutions[0].length));
+    assert.equal(solutions[0].length, 3);
     assert.deepEqual(R.powerSolution(puzzle), solutions[0]);
     patterns.add(puzzle.initial);
   }
@@ -288,8 +288,9 @@ test("nameplate rows accommodate short names without blank or repeated tiles", (
     assert.ok(puzzle.rows.every(row => row.length >= 1));
     assert.equal(puzzle.chunks.length, Math.min(6, R.nameLetters(name).length));
     const solutions = Array.from({ length: 1 << puzzle.masks.length }, (_, mask) => R.circuitNumbers(mask))
-      .filter(on => R.powerState(puzzle, on) === puzzle.target);
-    assert.equal(solutions.length, 1);
+      .filter(on => on.length === 3 && R.powerState(puzzle, on) === puzzle.target);
+    assert.ok(solutions.length >= 1);
+    assert.equal(R.powerSolution(puzzle).length, 3);
     assert.deepEqual(R.powerSolution(puzzle), solutions[0]);
   }
 });

@@ -520,13 +520,18 @@
     {
       label: "Energy", department: "SUSTAINABILITY & RESOURCE ALLOCATION", title: "Your name needs an energy permit.",
       paperwork: { hold: "Nameplate energy permit required.", approval: "Energy permit granted." },
-      description: "Light the nameplate. Stay within your circuit allowance.",
-      body: reference + `<p class="micro">NAMEPLATE / ENERGY INSPECTION</p><div class="name-power" role="group" aria-label="First and last name on separate rows"></div><div class="switchboard" role="group" aria-label="Nameplate power circuits"></div>` + output("power-count", "ENERGY PERMIT / INSPECTION"),
+      description: "Design a circuit to light the whole nameplate with exactly three circuits.",
+      body: reference + `<div class="power-panel"><div class="power-panel-header"><span class="micro">NAMEPLATE / POWER SUPPLY</span><div class="power-budget" aria-hidden="true"><i></i><i></i><i></i></div></div><svg class="power-wires" aria-hidden="true" focusable="false"></svg><div class="switchboard switchboard-top" role="group" aria-label="Circuits 1 to 3"></div><div class="name-power" role="group" aria-label="First and last name on separate rows"></div><div class="switchboard switchboard-bottom" role="group" aria-label="Circuits 4 to 6"></div></div>`,
       action: "Request energy permit", footnote: "Your name has a carbon footprint.",
       note: { text: "They asked me to offset my name. I offered to stand slightly to the left. My permit is still pending.", author: "Applicant 462, environmentally unresolved" },
       mount({ root, applicant, records, announce, random }) {
         const puzzle = R.makeNamePower(applicant, random);
-        const allowance = R.powerSolution(puzzle).length;
+        const allowance = 3;
+        const panel = root.querySelector(".power-panel");
+        const wires = root.querySelector(".power-wires");
+        const switches = [];
+        const colors = ["#72c8c1", "#edb75c", "#8cbcf0", "#d89ab8", "#b9a1ed", "#b2ca6a"];
+        let linked = null;
         const on = new Set();
         const lamps = [];
         puzzle.rows.forEach((chunks, rowIndex) => {
@@ -551,43 +556,114 @@
         });
         function update() {
           const mask = R.powerState(puzzle, on);
+          switches.forEach((node, i) => { node.disabled = on.size === allowance && !on.has(i + 1); });
+          panel.querySelectorAll(".power-budget i").forEach((light, i) => light.classList.toggle("used", i < on.size));
+          wires.querySelectorAll("[data-circuit]").forEach(group => group.classList.toggle("powered", on.has(Number(group.dataset.circuit))));
           lamps.forEach((lamp, i) => {
             const lit = !!(mask & (1 << i));
             lamp.classList.toggle("lit", lit);
             lamp.querySelector("span").textContent = lit ? "LIT" : "DARK";
           });
-          text(root, "#power-count", `${R.circuitNumbers(mask, lamps.length).length}/${lamps.length} sections lit\n${on.size}/${allowance} circuits used`);
         }
         puzzle.masks.forEach((mask, i) => {
           const node = button("", "circuit-switch");
           node.dataset.mask = mask;
+          node.style.setProperty("--wire-color", colors[i]);
           node.setAttribute("aria-label", `Circuit ${i + 1}`);
           node.setAttribute("aria-pressed", "false");
           const label = document.createElement("strong");
           label.textContent = `Circuit ${i + 1}`;
           const wiring = document.createElement("span");
-          wiring.textContent = `Toggles sections ${R.circuitNumbers(mask, lamps.length).join(", ")}`;
-          node.append(label, wiring);
+          wiring.textContent = R.circuitNumbers(mask, lamps.length).join(" · ");
+          node.setAttribute("aria-description", `Toggles sections ${R.circuitNumbers(mask, lamps.length).join(", ")}`);
+          const symbol = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+          symbol.setAttribute("viewBox", "0 0 12 14");
+          symbol.setAttribute("aria-hidden", "true");
+          symbol.classList.add("power-symbol");
+          const circle = document.createElementNS(symbol.namespaceURI, "circle");
+          circle.classList.add("power-symbol-off");
+          circle.setAttribute("cx", "6"); circle.setAttribute("cy", "7"); circle.setAttribute("r", "3.5");
+          const line = document.createElementNS(symbol.namespaceURI, "path");
+          line.classList.add("power-symbol-on"); line.setAttribute("d", "M6 3V11");
+          symbol.append(circle, line);
+          node.append(symbol, label, wiring);
+          const trace = value => {
+            linked = value;
+            wires.querySelectorAll("[data-circuit]").forEach(group => group.classList.toggle("traced", Number(group.dataset.circuit) === linked));
+            lamps.forEach((lamp, section) => lamp.classList.toggle("power-linked", linked !== null && !!(puzzle.masks[linked - 1] & (1 << section))));
+          };
+          node.addEventListener("mouseenter", () => trace(i + 1));
+          node.addEventListener("focus", () => trace(i + 1));
+          node.addEventListener("mouseleave", () => trace(null));
+          node.addEventListener("blur", () => trace(null));
           node.addEventListener("click", () => {
             if (on.has(i + 1)) on.delete(i + 1);
-            else on.add(i + 1);
+            else if (on.size < allowance) on.add(i + 1);
+            else return;
             node.setAttribute("aria-pressed", String(on.has(i + 1)));
             update();
-            announce(on.size > allowance ? "Circuit allowance exceeded. Release a circuit." : R.powerState(puzzle, on) === puzzle.target ? "Nameplate compliant. Request your permit." : "");
+            announce(on.size === allowance && R.powerState(puzzle, on) === puzzle.target ? "Nameplate compliant. Request your permit." : "");
           });
-          root.querySelector(".switchboard").append(node);
+          switches.push(node);
+          root.querySelector(i < 3 ? ".switchboard-top" : ".switchboard-bottom").append(node);
         });
+        function drawWires() {
+          const bounds = panel.getBoundingClientRect();
+          const rows = [...root.querySelectorAll(".name-power-row")];
+          const firstRow = rows[0].getBoundingClientRect();
+          wires.setAttribute("viewBox", `0 0 ${bounds.width} ${bounds.height}`);
+          wires.replaceChildren();
+          switches.forEach((node, i) => {
+            const upperBank = i < 3;
+            const slot = i % 3;
+            const start = node.getBoundingClientRect();
+            const group = document.createElementNS(wires.namespaceURI, "g");
+            group.dataset.circuit = i + 1;
+            group.style.setProperty("--wire-color", colors[i]);
+            group.classList.toggle("powered", on.has(i + 1));
+            group.classList.toggle("traced", linked === i + 1);
+            const sx = start.left + start.width / 2 - bounds.left;
+            const sy = (upperBank ? start.bottom : start.top) - bounds.top;
+            // Each bank has three bus lanes. Every circuit gets its own pin
+            // position on each section and its own perimeter lane across rows.
+            const lane = sy + (upperBank ? 1 : -1) * (16 + slot * 10);
+            const side = slot === 1 ? bounds.width - (4 + i * 2) : 4 + i * 2;
+            const middleLane = firstRow.bottom - bounds.top + 6 + i * 4;
+            lamps.forEach((lamp, section) => {
+              if (!(puzzle.masks[i] & (1 << section))) return;
+              const end = lamp.getBoundingClientRect();
+              const ex = end.left - bounds.left + 5 + (end.width - 10) * (i + 1) / 7;
+              const ey = (upperBank ? end.top - 2 : end.bottom + 2) - bounds.top;
+              const first = lamp.parentElement === rows[0];
+              const sameSide = upperBank ? first : !first;
+              const path = document.createElementNS(wires.namespaceURI, "path");
+              path.setAttribute("d", sameSide ? `M${sx} ${sy} V${lane} H${ex} V${ey}`
+                : `M${sx} ${sy} V${lane} H${side} V${middleLane} H${ex} V${ey}`);
+              const pin = document.createElementNS(wires.namespaceURI, "circle");
+              pin.setAttribute("cx", ex); pin.setAttribute("cy", ey); pin.setAttribute("r", "2");
+              pin.setAttribute("fill", "#20382d");
+              group.append(path, pin);
+            });
+            wires.append(group);
+          });
+        }
+        const observer = new ResizeObserver(drawWires);
+        observer.observe(panel);
+        drawWires();
         update();
         return {
+          dispose: () => observer.disconnect(),
           validate: () => {
-            if (on.size > allowance || R.powerState(puzzle, on) !== puzzle.target) return "Light every section within the circuit allowance.";
+            if (on.size !== allowance || R.powerState(puzzle, on) !== puzzle.target) return "Light every section with exactly three circuits.";
             records.power = [...on].sort((a, b) => a - b);
             return "";
           },
           hint: () => {
             const solution = R.powerSolution(puzzle);
-            const changes = [...new Set([...solution, ...on])].filter(i => solution.includes(i) !== on.has(i)).sort((a, b) => a - b);
-            return changes.length ? `Toggle circuits ${changes.join(", ")}.` : "Nameplate compliant. Request your permit.";
+            const off = [...on].filter(i => !solution.includes(i));
+            const add = solution.filter(i => !on.has(i));
+            const steps = [off.length ? `Switch off ${off.join(", ")}` : "", add.length ? `switch on ${add.join(", ")}` : ""].filter(Boolean);
+            return steps.length ? steps.join("; ") + "." : "Nameplate compliant. Request your permit.";
           }
         };
       }

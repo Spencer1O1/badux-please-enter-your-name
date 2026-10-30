@@ -170,14 +170,15 @@
     return Array.from({ length: count }, (_, i) => chars.slice(Math.floor(i * chars.length / count), Math.floor((i + 1) * chars.length / count)).join(""));
   };
 
-  // Independent wiring gives exactly one switch combination for each lamp pattern.
+  // Six-section wiring gives one switch combination per lamp pattern.
+  // Shorter nameplates reuse sections but still require three active switches.
   const powerMasks = [3, 57, 18, 19, 60, 15];
   const circuitNumbers = (mask, count = 6) => Array.from({ length: count }, (_, i) => i + 1).filter(i => mask & (1 << (i - 1)));
   const powerState = (puzzle, on) => [...on].reduce((state, circuit) => state ^ puzzle.masks[circuit - 1], puzzle.initial);
   function powerSolution(puzzle) {
     for (let mask = 0; mask < (1 << puzzle.masks.length); mask++) {
       const on = circuitNumbers(mask);
-      if (powerState(puzzle, on) === puzzle.target) return on;
+      if (on.length === 3 && powerState(puzzle, on) === puzzle.target) return on;
     }
     return null;
   }
@@ -189,11 +190,13 @@
     const firstCount = Math.max(1, count - lastLength, Math.min(firstLength, count - 1, Math.round(count * firstLength / (firstLength + lastLength))));
     const rows = [splitName(first, firstCount), splitName(last, count - firstCount)];
     const chunks = rows.flat();
-    const masks = count === 6 ? [...powerMasks] : Array.from({ length: count }, (_, i) => 1 << i);
-    const weights = count === 6 ? [3, 4] : [Math.max(1, Math.floor(count / 2))];
-    const combinations = Array.from({ length: 1 << count }, (_, i) => i).filter(mask => weights.includes(circuitNumbers(mask).length));
-    const solution = circuitNumbers(combinations[Math.floor(random() * combinations.length)]);
     const target = (1 << count) - 1;
+    const masks = powerMasks.map((mask, i) => (mask & target) || (1 << (i % count)));
+    const combinations = Array.from({ length: 64 }, (_, i) => i).filter(mask => {
+      const on = circuitNumbers(mask);
+      return on.length === 3 && on.reduce((value, circuit) => value ^ masks[circuit - 1], 0) !== 0;
+    });
+    const solution = circuitNumbers(combinations[Math.floor(random() * combinations.length)]);
     return { rows, chunks, masks, target, initial: solution.reduce((state, circuit) => state ^ masks[circuit - 1], target) };
   }
 

@@ -93,6 +93,7 @@
   }
 
   function missTurn(now) {
+    activeDepartment?.dispose?.();
     clearTicketPresentation();
     state.lost = true;
     state.finishedAt = now;
@@ -210,6 +211,8 @@
   }
 
   function showStage({ focus = true, scroll = true, shifted = false } = {}) {
+    activeDepartment?.dispose?.();
+    activeDepartment = null;
     const complete = state.current === departments.length;
     renderProgress(shifted);
     renderReceipt(complete);
@@ -311,7 +314,6 @@
     if (!state.ticketPending) return;
     state.ticketPending = false;
     state.ticketIssued = true;
-    state.startedAt = Date.now();
     ticketDialog.close();
     document.querySelector("main").inert = true;
     document.querySelector(".masthead").inert = true;
@@ -322,7 +324,10 @@
     if (bounds.top < 0 || bounds.bottom > innerHeight) queue.scrollIntoView({ block: "center" });
     const finish = () => {
       clearTicketPresentation();
-      if (!state.lost) advanceDepartment(state.startedAt);
+      if (!state.lost) {
+        state.startedAt = Date.now();
+        advanceDepartment(state.startedAt);
+      }
     };
     if (matchMedia("(prefers-reduced-motion: reduce)").matches) finish();
     else ticketRevealTimer = setTimeout(finish, 1400);

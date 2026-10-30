@@ -446,12 +446,27 @@ for (const engine of engines) {
         await expectError();
         const power = R.makeNamePower(name, stageRandom("Energy"));
         const circuits = R.powerSolution(power);
-        for (let i = 1; i <= 6; i++) await page.locator(".circuit-switch").nth(i - 1).click();
-        await submit();
-        await expectError();
-        for (let i = 1; i <= 6; i++) await page.locator(".circuit-switch").nth(i - 1).click();
+        assert.equal(circuits.length, 3);
+        assert.equal(await page.locator(".power-wires g").count(), 6);
+        assert.equal(await page.locator(".switchboard-top .circuit-switch").count(), 3);
+        assert.equal(await page.locator(".switchboard-bottom .circuit-switch").count(), 3);
+        const bankOrder = await page.locator(".power-panel").evaluate(panel => {
+          const upper = panel.querySelector(".switchboard-top").getBoundingClientRect();
+          const lamps = panel.querySelector(".name-power").getBoundingClientRect();
+          const lower = panel.querySelector(".switchboard-bottom").getBoundingClientRect();
+          return upper.bottom < lamps.top && lamps.bottom < lower.top;
+        });
+        assert.equal(bankOrder, true, "the nameplate must sit between two banks of three switches");
+        assert.equal(await page.locator(".power-wires path").count(), power.masks.reduce((count, mask) => count + R.circuitNumbers(mask).length, 0));
+        for (let i = 0; i < 3; i++) await page.locator(".circuit-switch").nth(i).click();
+        assert.equal(await page.locator(".circuit-switch:disabled").count(), 3);
+        await page.locator(".circuit-switch").nth(3).evaluate(node => node.click());
+        assert.equal(await page.locator('.circuit-switch[aria-pressed="true"]').count(), 3);
+        for (let i = 0; i < 3; i++) await page.locator(".circuit-switch").nth(i).click();
+        assert.equal(await page.locator(".circuit-switch:disabled").count(), 0);
         for (const number of circuits) await page.locator(".circuit-switch").nth(number - 1).click();
         assert.equal(await page.locator(".name-section.lit").count(), 6);
+        assert.equal(await page.locator(".power-wires .powered").count(), 3);
         assert.equal(await page.locator(".name-section strong").allTextContents().then(parts => parts.join("")), name.replace(/ /g, ""));
         const nameRows = await page.locator(".name-power-row").evaluateAll(rows => rows.map(row => ({
           label: row.getAttribute("aria-label"),
@@ -462,7 +477,6 @@ for (const engine of engines) {
         assert.deepEqual(nameRows.map(row => row.text), name.split(" "));
         assert.ok(nameRows[1].top > nameRows[0].top);
         assert.ok(nameRows.every(row => row.slots.every(slot => slot.text.trim() && slot.top === row.top)), "each name must occupy a single row without blanks");
-        assert.deepEqual((await page.locator("#power-count").textContent()).match(/\d+/g).map(Number), [6, 6, circuits.length, circuits.length]);
         await screenshot("power");
         await submit();
         await stage(11);
@@ -655,6 +669,7 @@ for (const engine of engines) {
       await page.keyboard.press("Enter");
       assert.equal(await page.locator("main").evaluate(node => node.inert), true);
       assert.equal(await page.locator("body").evaluate(node => node.classList.contains("ticket-reveal")), true);
+      assert.equal(await page.locator("body").getAttribute("data-queue-running"), "false");
       await page.clock.fastForward(220);
       if (screenshotDirectory) await page.screenshot({ path: resolve(screenshotDirectory, `name-office-${engine}-ticket-reveal.png`), fullPage: true });
       await page.clock.fastForward(780);
@@ -668,7 +683,7 @@ for (const engine of engines) {
       assert.equal(Number(await page.locator("#queue-number").textContent()), ticket);
       await page.locator("#hint-button").click();
       await page.locator("#hint-button").click();
-      await page.clock.fastForward(8599);
+      await page.clock.fastForward(9999);
       assert.equal(await nowServing(), original);
       await page.clock.fastForward(1);
       assert.equal(await nowServing(), original + 1);

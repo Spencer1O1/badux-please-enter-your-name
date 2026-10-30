@@ -21,7 +21,7 @@ slides away as the next one arrives. The game reveals its total only on completi
 Intake shows Now serving but leaves the applicant ticket unissued. A valid name
 opens a generic departmental ticket, with no time estimate or queue count on it.
 Taking the ticket assigns the number exactly 48 places ahead of Now serving and
-starts the eight-minute queue: Now serving
+begins the reveal. The queue starts after that reveal finishes: Now serving
 advances once every 10 seconds. Opening instructions, invalid intake and reading the ticket do not
 use the window. Escape returns to intake without taking the ticket. Taking it
 reveals and briefly pulses the counter, then clears the rest of the page and
@@ -34,8 +34,9 @@ eight-minute window.
 Warnings escalate at two minutes, one minute, thirty seconds, and the final call.
 A compact queue display stays visible when the main panel scrolls away. Reduced
 motion keeps the urgency colors but disables pulsing. Completion freezes the queue
-and displays the elapsed run time as `m:ss.mmm`, measured from taking the ticket
-to final approval. The result stays fixed until a new application;
+and displays the elapsed run time as `m:ss.mmm`, measured from the end of the ticket reveal
+to final approval. The reveal is excluded from both the queue deadline and run
+time, so reduced motion provides no timing advantage. The result stays fixed until a new application;
 it is not stored or uploaded. Approved and missed stamps share one CSS rule,
 including the manually tuned 7px top and 20px bottom margins.
 Both final certificates show how many times assistance was requested, including
@@ -125,8 +126,8 @@ cannot change later puzzles. Stage resets keep their original setup. The stamp
 tray still reshuffles after every pick, with a reproducible sequence for the same
 actions. Intake, capitalization and vowel clearance retain their fixed rules;
 initials keep their letter shapes, with any required fixed cells seeded per run.
-Energy retains its circuit wiring and unique three- or four-switch solution;
-the seed selects its starting lights. For comparable speedruns, use the same
+Energy always requires exactly three active circuits; the seed selects its
+starting lights. Six-section nameplates have a unique solution. For comparable speedruns, use the same
 URL, name and game version, and compare assistance totals alongside elapsed time.
 
 The first four departments are intake, capitalization, vowel customs and name
@@ -174,9 +175,15 @@ illuminated nameplate within its circuit allowance to obtain an energy permit.
 The first name occupies the first row and the last name the second, with no
 space tiles. Six nonempty sections are distributed between those rows according
 to name length, so even one-letter names have no blank slots. Shared circuits
-toggle several sections; the allowance equals the unique solution’s three or
-four circuits. Names with fewer than six grapheme clusters use fewer sections
-and circuits. Carbon’s
+toggle several sections, with exactly three circuits required for every name.
+Short names keep their natural number of sections and still use six switches
+with three active. The control panel draws colored wire traces between each
+switch and its sections. Three switches sit above the nameplate and three below;
+each circuit has a separate bus lane and pin positions, with perimeter routing
+for connections to the far row. Rockers use drawn line/circle symbols. Lit sections use a restrained fill, and hover or keyboard
+focus traces the connections without glow. Once three switches are active, the
+others are disabled until one is released. The panel’s three indicators replace
+the separate inspection readout. Carbon’s
 five copier strips also omit spaces, retaining their strip numbers for controls.
 
 The maze uses 225 walkable cells with thin walls between them, generated with a
