@@ -162,7 +162,7 @@ tray still reshuffles after every pick, with a reproducible sequence for the sam
 actions. Intake, capitalization and vowel clearance retain their fixed rules;
 initials keep their letter shapes, with any required fixed cells seeded per run.
 Electrical always requires exactly three active circuits; the seed selects its
-starting lights. Six-section nameplates have a unique solution. For comparable speedruns, use the same
+starting lights. Every six-panel nameplate has a unique solution. For comparable speedruns, use the same
 URL, name and game version, and compare assistance totals alongside elapsed time.
 
 The first four departments are intake, capitalization, vowel customs and name
@@ -176,6 +176,9 @@ solve two ink-grid puzzles for the applicant’s initials, then stamp the approv
 The completed monogram appears as a small clockwise-tilted seal at the bottom
 right of the certificate, outside the main text column. This is a standalone puzzle;
 no answers from earlier departments are needed.
+
+Security and Reprographics keep each chunk within a first or last name; no chunk
+crosses the name boundary. For example, DR JOES has lock groups DR / J / O / ES.
 
 Department 06 is Security: unlock a confidential personnel file using four
 combination wheels. Each digit shifts one encrypted group of name letters;
@@ -214,20 +217,19 @@ Generated truth patterns guarantee one solution. All invalid submissions show th
 confirming whether the file or statement selection is correct. The retrieved file
 number and filing code are retained in the application’s in-memory records.
 
-Department 10 is Electrical. Restore the applicant’s
-illuminated nameplate within its circuit allowance to obtain an energy permit.
-The first name occupies the first row and the last name the second, with no
-space tiles. Six nonempty sections are distributed between those rows according
-to name length, so even one-letter names have no blank slots. Shared circuits
-toggle several sections, with exactly three circuits required for every name.
-Short names keep their natural number of sections and still use six switches
-with three active. The control panel draws colored wire traces between each
-switch and its sections. Three switches sit above the nameplate and three below;
-each circuit has a separate bus lane and pin positions, with perimeter routing
-for connections to the far row. Rockers use drawn line/circle symbols. Lit sections use a restrained fill, and hover or keyboard
-focus traces the connections without glow. Once three switches are active, the
-others are disabled until one is released. The panel’s three indicators replace
-the separate inspection readout. Reprographics’s
+Department 10 is Electrical. Restore the applicant’s illuminated nameplate within
+its circuit allowance to obtain power clearance. Two rows always contain three
+light panels each. The first and last names split into chunks only within their
+respective rows. Short names leave unused panels blank at the end of their row;
+the six-panel wiring and three-switch requirement stay fixed. Each
+switch toggles three panels, and each panel has three inputs. Left and right
+switches and their wire routes mirror one another. All twenty generated setups
+have exactly one solution, using exactly three active switches. Distinct pin
+positions, perimeter lanes and mirrored 45-degree ramps organize the traces.
+Right-angle bends use chamfered corners, and plated ring pads mark connections. Rockers use
+drawn line/circle symbols; lit panels glow against a light fiberglass substrate.
+Once three switches are active, the others are disabled until one is released.
+The panel’s three indicators replace the separate inspection readout. Reprographics’s
 five copier strips also omit spaces. Small corner numbers and colored edges distinguish identical
 chunks; a shared seal spans the full strip backgrounds. The original sits above the output tray,
 and operation buttons diagram each rearrangement. Strips animate between positions

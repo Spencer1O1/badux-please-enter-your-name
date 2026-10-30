@@ -653,16 +653,53 @@ for (const engine of engines) {
         for (const number of circuits) await page.locator(".circuit-switch").nth(number - 1).click();
         assert.equal(await page.locator(".name-section.lit").count(), 6);
         assert.equal(await page.locator(".power-wires .powered").count(), 3);
-        assert.equal(await page.locator(".name-section strong").allTextContents().then(parts => parts.join("")), name.replace(/ /g, ""));
+        assert.equal(await page.locator(".nameplate-name").allTextContents().then(parts => parts.join("")), name.replace(/ /g, ""));
         const nameRows = await page.locator(".name-power-row").evaluateAll(rows => rows.map(row => ({
           label: row.getAttribute("aria-label"),
-          text: [...row.querySelectorAll("strong")].map(node => node.textContent).join(""),
+          text: [...row.querySelectorAll(".nameplate-name")].map(label => label.textContent).join(""),
+          chunks: [...row.querySelectorAll(".nameplate-name")].map(label => label.textContent),
+          fits: [...row.querySelectorAll(".nameplate-name")].every(label => label.scrollWidth <= label.clientWidth + 1),
           top: row.getBoundingClientRect().top,
-          slots: [...row.querySelectorAll(".name-section")].map(node => ({ text: node.querySelector("strong").textContent, top: node.getBoundingClientRect().top }))
+          slots: [...row.querySelectorAll(".name-section")].map(node => ({ top: node.getBoundingClientRect().top }))
         })));
         assert.deepEqual(nameRows.map(row => row.text), name.split(" "));
+        assert.deepEqual(nameRows.map(row => row.chunks), power.rows, "each panel shows a chunk from its own name part, including trailing blanks");
         assert.ok(nameRows[1].top > nameRows[0].top);
-        assert.ok(nameRows.every(row => row.slots.every(slot => slot.text.trim() && slot.top === row.top)), "each name must occupy a single row without blanks");
+        assert.ok(nameRows.every(row => row.slots.length === 3 && row.fits && row.slots.every(slot => Math.abs(slot.top - row.top) < .1)), "each complete name must fit across exactly three aligned panels");
+        assert.equal(await page.locator(".name-power-row.all-lit").count(), 2);
+        const traceAngles = await page.locator(".power-wires").evaluate(svg => {
+          let nonPcbSegments = 0, rightAngleCorners = 0;
+          for (const path of svg.querySelectorAll("path")) {
+            const values = path.getAttribute("d").match(/[-+]?(?:\d*\.\d+|\d+)(?:e[-+]?\d+)?/gi).map(Number);
+            const directions = [];
+            for (let i = 2; i < values.length; i += 2) {
+              const dx = values[i] - values[i - 2], dy = values[i + 1] - values[i - 1];
+              const length = Math.hypot(dx, dy);
+              if (length < .001) continue;
+              if (Math.abs(dx) > .001 && Math.abs(dy) > .001 && Math.abs(Math.abs(dx) - Math.abs(dy)) > .001) nonPcbSegments++;
+              directions.push([dx / length, dy / length]);
+            }
+            for (let i = 1; i < directions.length; i++) if (Math.abs(directions[i][0] * directions[i - 1][0] + directions[i][1] * directions[i - 1][1]) < .001) rightAngleCorners++;
+          }
+          return { nonPcbSegments, rightAngleCorners };
+        });
+        assert.deepEqual(traceAngles, { nonPcbSegments: 0, rightAngleCorners: 0 }, "PCB traces use horizontal, vertical, and 45-degree segments with beveled corners");
+        const mirrorError = await page.locator(".power-wires").evaluate(svg => {
+          const mirror = [3, 2, 1, 6, 5, 4];
+          const width = svg.viewBox.baseVal.width;
+          let error = 0;
+          for (const path of svg.querySelectorAll("path")) {
+            const circuit = Number(path.parentElement.dataset.circuit), section = Number(path.dataset.section);
+            const other = svg.querySelector(`[data-circuit="${mirror[circuit - 1]}"] path[data-section="${mirror[section - 1]}"]`);
+            if (!other) return Infinity;
+            for (const t of [0, .25, .5, .75, 1]) {
+              const a = path.getPointAtLength(path.getTotalLength() * t), b = other.getPointAtLength(other.getTotalLength() * t);
+              error = Math.max(error, Math.abs(a.x + b.x - width), Math.abs(a.y - b.y));
+            }
+          }
+          return error;
+        });
+        assert.ok(mirrorError < .5, `wire geometry must mirror left-to-right (error ${mirrorError})`);
         await screenshot("power");
         await submit();
         await stage(11);

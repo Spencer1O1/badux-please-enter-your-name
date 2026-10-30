@@ -200,6 +200,34 @@ test("four-digit file locks have one reachable combination and preserve every na
   }
 });
 
+test("grouped puzzles keep first and last names separate and pad short panel rows at the end", () => {
+  const example = R.makeNameLock("DR JOES", () => .5);
+  assert.deepEqual(R.lockGroups(example, example.combination), ["DR", "J", "O", "ES"]);
+  assert.deepEqual(R.makeCopyPuzzle("DR JOES", () => .5).strips, ["D", "R", "J", "O", "ES"]);
+  assert.deepEqual(R.makeNamePower("DR JOES", () => .5).rows, [["D", "R", ""], ["J", "O", "ES"]]);
+  for (const name of [...names, "A Bcdef", "Abcde F", "Straße Suppe", "क्ष्ण क्ष्ण"]) {
+    const lock = R.makeNameLock(name, () => .5);
+    for (const [source, chunks] of [[lock.target, R.lockGroups(lock, lock.combination)], [name, R.makeCopyPuzzle(name, () => .5).strips]]) {
+      const parts = R.normalizeName(source).split(" ");
+      const boundary = R.letters(parts[0]).length;
+      let position = 0;
+      for (const chunk of chunks) {
+        const end = position + R.letters(chunk).length;
+        assert.ok(!(position < boundary && end > boundary), "a chunk must not span the first/last name boundary");
+        position = end;
+      }
+      assert.equal(chunks.join(""), parts.join(""));
+    }
+    const power = R.makeNamePower(name, () => .5);
+    assert.deepEqual(power.rows.map(row => row.join("")), R.normalizeName(name).split(" "));
+    power.rows.forEach(row => {
+      assert.equal(row.length, 3);
+      const blank = row.indexOf("");
+      if (blank !== -1) assert.ok(row.slice(blank).every(chunk => chunk === ""), "unused panels belong at the end of a row");
+    });
+  }
+});
+
 test("stamp trays always show twelve unique choices including the next required letter", () => {
   for (const name of [...names, "Bobby Joe", "Straße Suppe", "ﬃﬄ Stuff", "Abcdefghij Klmnopqrst"]) {
     const { target, stamps } = R.makeNameStamps(name);
@@ -267,9 +295,9 @@ test("name switchboards have exactly one solution and require three switches", (
   const patterns = new Set();
   for (const name of names) {
     const puzzle = R.makeNamePower(name);
-    assert.equal(puzzle.chunks.join(""), name.replace(/ /g, ""));
     assert.deepEqual(puzzle.rows.map(row => row.join("")), name.split(" "));
-    assert.ok(puzzle.chunks.every(chunk => chunk && !chunk.includes(" ")));
+    assert.ok(puzzle.rows.every(row => row.length === 3));
+    assert.equal(puzzle.target, 63);
     const solutions = [];
     for (let mask = 0; mask < 64; mask++) {
       const on = R.circuitNumbers(mask);
@@ -283,19 +311,38 @@ test("name switchboards have exactly one solution and require three switches", (
   assert.ok(patterns.size > 1, "different names must produce different damage patterns");
 });
 
-test("nameplate rows accommodate short names without blank or repeated tiles", () => {
+test("short and long names keep their complete labels and a unique six-panel solution", () => {
   for (const name of ["A Bcdef", "Abcde F", "Ab Cdef", "Dr Doofenshmirtz", "A " + "B".repeat(19), "B".repeat(19) + " A", "क्ष्ण क्ष्ण"]) {
     const puzzle = R.makeNamePower(name);
     assert.deepEqual(puzzle.rows.map(row => row.join("")), name.split(" "));
-    assert.ok(puzzle.chunks.every(chunk => chunk && !chunk.includes(" ")));
-    assert.ok(puzzle.rows.every(row => row.length >= 1));
-    assert.equal(puzzle.chunks.length, Math.min(6, R.nameLetters(name).length));
+    assert.ok(puzzle.rows.every(row => row.length === 3));
+    assert.equal(puzzle.target, 63);
+    assert.equal(puzzle.masks.length, 6);
     const solutions = Array.from({ length: 1 << puzzle.masks.length }, (_, mask) => R.circuitNumbers(mask))
       .filter(on => on.length === 3 && R.powerState(puzzle, on) === puzzle.target);
-    assert.ok(solutions.length >= 1);
+    assert.equal(solutions.length, 1);
     assert.equal(R.powerSolution(puzzle).length, 3);
     assert.deepEqual(R.powerSolution(puzzle), solutions[0]);
   }
+});
+
+test("mirrored switchboards have three connections per switch and panel, with twenty unique three-switch puzzles", () => {
+  const reflected = [2, 1, 0, 5, 4, 3];
+  const damage = new Set();
+  for (let setup = 0; setup < 20; setup++) {
+    const puzzle = R.makeNamePower("A Bcdef", () => (setup + .5) / 20);
+    puzzle.masks.forEach((mask, circuit) => {
+      assert.equal(R.circuitNumbers(mask).length, 3);
+      const mirror = reflected.reduce((value, target, source) => value | ((mask >> source & 1) << target), 0);
+      assert.equal(puzzle.masks[reflected[circuit]], mirror);
+    });
+    for (let panel = 0; panel < 6; panel++) assert.equal(puzzle.masks.filter(mask => mask >> panel & 1).length, 3);
+    const solutions = Array.from({ length: 64 }, (_, mask) => R.circuitNumbers(mask)).filter(on => R.powerState(puzzle, on) === puzzle.target);
+    assert.equal(solutions.length, 1);
+    assert.equal(solutions[0].length, 3);
+    damage.add(puzzle.initial);
+  }
+  assert.equal(damage.size, 20);
 });
 
 // An independent pathfinder treats wrong letters as walls. This verifies that

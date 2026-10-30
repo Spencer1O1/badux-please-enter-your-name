@@ -99,9 +99,9 @@
     return shuffle([name, name, name, typoOne, changed.join(""), name + " Junior", "Not " + name, reordered, name + "!"], random);
   }
   function makeNameLock(name, random = Math.random) {
-    const target = name.toUpperCase().normalize("NFC");
+    const target = normalizeName(name).toUpperCase().normalize("NFC");
     const alphabet = [...new Set([...letters("ABCDEFGHIJKLMNOPQRSTUVWXYZ"), ...nameLetters(target)])];
-    const groups = splitName(nameLetters(target).join(""), 4);
+    const groups = splitNameParts(target, 4);
     const combination = groups.map(group => group ? 1 + Math.floor(random() * 9) : 0);
     const encoded = groups.map((group, i) => letters(group).map(char => alphabet[(alphabet.indexOf(char) - combination[i] + alphabet.length) % alphabet.length]).join(""));
     return { target, alphabet, encoded, combination };
@@ -168,12 +168,21 @@
   }
   const splitName = (name, count) => {
     const chars = letters(name);
-    return Array.from({ length: count }, (_, i) => chars.slice(Math.floor(i * chars.length / count), Math.floor((i + 1) * chars.length / count)).join(""));
+    const used = Math.min(count, chars.length);
+    const chunks = Array.from({ length: used }, (_, i) => chars.slice(Math.floor(i * chars.length / used), Math.floor((i + 1) * chars.length / used)).join(""));
+    return chunks.concat(Array(count - used).fill(""));
   };
+  function splitNameParts(name, count) {
+    const [first, last] = normalizeName(name).split(" ");
+    const firstLength = letters(first).length, lastLength = letters(last).length;
+    const used = Math.min(count, firstLength + lastLength);
+    const firstCount = Math.max(1, used - lastLength, Math.min(firstLength, used - 1, Math.round(used * firstLength / (firstLength + lastLength))));
+    return [...splitName(first, firstCount), ...splitName(last, used - firstCount), ...Array(count - used).fill("")];
+  }
 
-  // Six-section wiring gives one switch combination per lamp pattern.
-  // Shorter nameplates reuse sections but still require three active switches.
-  const powerMasks = [3, 57, 18, 19, 60, 15];
+  // Three connections per switch and per panel, mirrored left-to-right.
+  // This full-rank wiring has one switch combination for every lamp pattern.
+  const powerMasks = [19, 42, 22, 13, 56, 37];
   const circuitNumbers = (mask, count = 6) => Array.from({ length: count }, (_, i) => i + 1).filter(i => mask & (1 << (i - 1)));
   const powerState = (puzzle, on) => [...on].reduce((state, circuit) => state ^ puzzle.masks[circuit - 1], puzzle.initial);
   function powerSolution(puzzle) {
@@ -184,21 +193,12 @@
     return null;
   }
   function makeNamePower(name, random = Math.random) {
-    const [first, last] = normalizeName(name).split(" ");
-    const firstLength = letters(first).length;
-    const lastLength = letters(last).length;
-    const count = Math.min(6, firstLength + lastLength);
-    const firstCount = Math.max(1, count - lastLength, Math.min(firstLength, count - 1, Math.round(count * firstLength / (firstLength + lastLength))));
-    const rows = [splitName(first, firstCount), splitName(last, count - firstCount)];
-    const chunks = rows.flat();
-    const target = (1 << count) - 1;
-    const masks = powerMasks.map((mask, i) => (mask & target) || (1 << (i % count)));
-    const combinations = Array.from({ length: 64 }, (_, i) => i).filter(mask => {
-      const on = circuitNumbers(mask);
-      return on.length === 3 && on.reduce((value, circuit) => value ^ masks[circuit - 1], 0) !== 0;
-    });
+    const rows = normalizeName(name).split(" ").map(part => splitName(part, 3));
+    const masks = [...powerMasks];
+    const target = 63;
+    const combinations = Array.from({ length: 64 }, (_, i) => i).filter(mask => circuitNumbers(mask).length === 3);
     const solution = circuitNumbers(combinations[Math.floor(random() * combinations.length)]);
-    return { rows, chunks, masks, target, initial: solution.reduce((state, circuit) => state ^ masks[circuit - 1], target) };
+    return { rows, masks, target, initial: solution.reduce((state, circuit) => state ^ masks[circuit - 1], target) };
   }
 
   const copyOperations = [
@@ -227,7 +227,7 @@
   function makeCopyPuzzle(name, random = Math.random) {
     const target = "01234";
     copyStarts ??= [...copyPaths(target).keys()].filter(start => copySolution(start, target).length === 4);
-    return { start: shuffle(copyStarts, random)[0], target, strips: splitName(nameLetters(name).join(""), 5) };
+    return { start: shuffle(copyStarts, random)[0], target, strips: splitNameParts(name, 5) };
   }
 
   // Five-column stamp alphabet. Other scripts use the browser's actual glyph.

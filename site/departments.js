@@ -638,24 +638,27 @@
         let linked = null;
         const on = new Set();
         const lamps = [];
+        const nameRows = [];
         puzzle.rows.forEach((chunks, rowIndex) => {
           const row = document.createElement("div");
           row.className = "name-power-row";
           row.setAttribute("role", "group");
           row.setAttribute("aria-label", rowIndex === 0 ? "First name" : "Last name");
-          row.style.setProperty("--sections", chunks.length);
-          chunks.forEach(chunk => {
+          for (let column = 0; column < 3; column++) {
             const lamp = document.createElement("div");
             lamp.className = "name-section";
+            lamp.dataset.section = lamps.length + 1;
             const number = document.createElement("small");
             number.textContent = `SECTION ${lamps.length + 1}`;
-            const content = document.createElement("strong");
-            content.textContent = chunk;
+            const label = document.createElement("strong");
+            label.className = "nameplate-name";
+            label.textContent = chunks[column];
             const status = document.createElement("span");
-            lamp.append(number, content, status);
+            lamp.append(number, label, status);
             lamps.push(lamp);
             row.append(lamp);
-          });
+          }
+          nameRows.push(row);
           root.querySelector(".name-power").append(row);
         });
         function update() {
@@ -668,6 +671,7 @@
             lamp.classList.toggle("lit", lit);
             lamp.querySelector("span").textContent = lit ? "LIT" : "DARK";
           });
+          nameRows.forEach((row, i) => row.classList.toggle("all-lit", (mask >> (i * 3) & 7) === 7));
         }
         puzzle.masks.forEach((mask, i) => {
           const node = button("", "circuit-switch");
@@ -711,10 +715,45 @@
           switches.push(node);
           root.querySelector(i < 3 ? ".switchboard-top" : ".switchboard-bottom").append(node);
         });
+        function pcbPath(points) {
+          // Merge straight runs, then bevel perpendicular corners with equal
+          // setbacks. All resulting edges are horizontal, vertical, or 45°.
+          const route = [];
+          const same = (a, b) => Math.abs(a[0] - b[0]) < .001 && Math.abs(a[1] - b[1]) < .001;
+          for (const point of points) {
+            if (route.length && same(route.at(-1), point)) continue;
+            while (route.length > 1) {
+              const a = route.at(-2), b = route.at(-1);
+              const u = [b[0] - a[0], b[1] - a[1]], v = [point[0] - b[0], point[1] - b[1]];
+              if (Math.abs(u[0] * v[1] - u[1] * v[0]) > .001 || u[0] * v[0] + u[1] * v[1] <= 0) break;
+              route.pop();
+            }
+            route.push(point);
+          }
+          const beveled = [route[0]];
+          for (let i = 1; i < route.length - 1; i++) {
+            const a = route[i - 1], b = route[i], c = route[i + 1];
+            const before = Math.max(Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]));
+            const after = Math.max(Math.abs(c[0] - b[0]), Math.abs(c[1] - b[1]));
+            const u = [(b[0] - a[0]) / before, (b[1] - a[1]) / before];
+            const v = [(c[0] - b[0]) / after, (c[1] - b[1]) / after];
+            if (Math.abs(u[0] * v[0] + u[1] * v[1]) < .001) {
+              const cut = Math.min(5, before / 3, after / 3);
+              beveled.push([b[0] - u[0] * cut, b[1] - u[1] * cut], [b[0] + v[0] * cut, b[1] + v[1] * cut]);
+            } else beveled.push(b);
+          }
+          beveled.push(route.at(-1));
+          return beveled.map(([x, y], i) => `${i ? "L" : "M"}${x} ${y}`).join(" ");
+        }
         function drawWires() {
           const bounds = panel.getBoundingClientRect();
-          const rows = [...root.querySelectorAll(".name-power-row")];
-          const firstRow = rows[0].getBoundingClientRect();
+          const firstRow = nameRows[0].getBoundingClientRect();
+          const secondRow = nameRows[1].getBoundingClientRect();
+          const gap = secondRow.top - firstRow.bottom;
+          panel.querySelectorAll(".nameplate-name").forEach(label => {
+            label.style.fontSize = "18px";
+            if (label.scrollWidth > label.clientWidth) label.style.fontSize = `${18 * label.clientWidth / label.scrollWidth}px`;
+          });
           wires.setAttribute("viewBox", `0 0 ${bounds.width} ${bounds.height}`);
           wires.replaceChildren();
           switches.forEach((node, i) => {
@@ -728,25 +767,41 @@
             group.classList.toggle("traced", linked === i + 1);
             const sx = start.left + start.width / 2 - bounds.left;
             const sy = (upperBank ? start.bottom : start.top) - bounds.top;
-            // Each bank has three bus lanes. Every circuit gets its own pin
-            // position on each section and its own perimeter lane across rows.
-            const lane = sy + (upperBank ? 1 : -1) * (16 + slot * 10);
-            const side = slot === 1 ? bounds.width - (4 + i * 2) : 4 + i * 2;
-            const middleLane = firstRow.bottom - bounds.top + 6 + i * 4;
+            const lane = sy + (upperBank ? 1 : -1) * (slot === 1 ? 30 : 16);
+            const pinPosition = [0.22, 0.5, 0.78, 0.35, 0.5, 0.65][i];
             lamps.forEach((lamp, section) => {
               if (!(puzzle.masks[i] & (1 << section))) return;
               const end = lamp.getBoundingClientRect();
-              const ex = end.left - bounds.left + 5 + (end.width - 10) * (i + 1) / 7;
+              const ex = end.left - bounds.left + 5 + (end.width - 10) * pinPosition;
               const ey = (upperBank ? end.top - 2 : end.bottom + 2) - bounds.top;
-              const first = lamp.parentElement === rows[0];
-              const sameSide = upperBank ? first : !first;
+              const sameSide = upperBank ? section < 3 : section >= 3;
               const path = document.createElementNS(wires.namespaceURI, "path");
-              path.setAttribute("d", sameSide ? `M${sx} ${sy} V${lane} H${ex} V${ey}`
-                : `M${sx} ${sy} V${lane} H${side} V${middleLane} H${ex} V${ey}`);
+              path.dataset.section = section + 1;
+              if (sameSide) path.setAttribute("d", pcbPath([[sx, sy], [sx, lane], [ex, lane], [ex, ey]]));
+              else {
+                // Outer circuits mirror one another. Central circuits branch to
+                // matching left/right perimeter lanes. Center-crossing routes
+                // use opposing 45° ramps instead of overlapping bus segments.
+                const left = slot === 0 || slot === 1 && section % 3 === 0;
+                const inset = slot === 1 ? 12 : upperBank ? 6 : 9;
+                const side = left ? inset : bounds.width - inset;
+                const entry = firstRow.bottom - bounds.top + gap * (upperBank ? slot === 1 ? 1 / 3 : 1 / 6 : 5 / 6);
+                const exit = firstRow.bottom - bounds.top + gap * (upperBank ? slot === 1 ? 2 / 3 : 5 / 6 : 1 / 6);
+                const direction = Math.sign(ex - side);
+                const rampWidth = Math.abs(exit - entry);
+                const crossesCenter = (side - bounds.width / 2) * (ex - bounds.width / 2) < 0;
+                const center = crossesCenter ? bounds.width / 2 : (side + ex) / 2;
+                const rampStart = center - direction * rampWidth / 2;
+                const rampEnd = center + direction * rampWidth / 2;
+                path.setAttribute("d", pcbPath([[sx, sy], [sx, lane], [side, lane], [side, entry], [rampStart, entry], [rampEnd, exit], [ex, exit], [ex, ey]]));
+              }
               const pin = document.createElementNS(wires.namespaceURI, "circle");
-              pin.setAttribute("cx", ex); pin.setAttribute("cy", ey); pin.setAttribute("r", "2");
-              pin.setAttribute("fill", "#20382d");
-              group.append(path, pin);
+              pin.classList.add("pcb-pad");
+              pin.setAttribute("cx", ex); pin.setAttribute("cy", ey); pin.setAttribute("r", "2.7");
+              const hole = document.createElementNS(wires.namespaceURI, "circle");
+              hole.classList.add("pcb-hole");
+              hole.setAttribute("cx", ex); hole.setAttribute("cy", ey); hole.setAttribute("r", "1");
+              group.append(path, pin, hole);
             });
             wires.append(group);
           });

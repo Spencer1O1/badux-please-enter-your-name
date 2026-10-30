@@ -638,6 +638,19 @@
   height: 100%;
   pointer-events: none;
   z-index: 0;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.power-wires .pcb-pad {
+  fill: #b5a16c;
+  stroke: #887648;
+  stroke-width: .8;
+}
+
+.power-wires .pcb-hole {
+  fill: #dfe5cb;
+  stroke: none;
 }
 
 .power-wires g {
@@ -668,13 +681,17 @@
 
 .name-power-row {
   display: grid;
-  grid-template-columns: repeat(var(--sections), minmax(0, 1fr));
+  position: relative;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
 
 .name-section {
   position: relative;
-  display: grid;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 76px;
   gap: 7px;
   text-align: center;
   padding: 10px 5px;
@@ -691,10 +708,17 @@
   color: #616b5a;
 }
 
-.name-section strong {
+.nameplate-name {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  text-align: center;
+  white-space: nowrap;
   font: 18px var(--mono);
-  overflow-wrap: anywhere;
   color: #707968;
+  pointer-events: none;
 }
 
 .name-section.lit {
@@ -714,7 +738,7 @@
   pointer-events: none;
 }
 
-.name-section.lit strong {
+.name-section.lit .nameplate-name {
   color: #674b1d;
   text-shadow: 0 0 5px #e8b52b99;
 }
@@ -1255,10 +1279,6 @@
 
 
 
-
-  .name-section strong {
-    font-size: 13px;
-  }
 
   .secondary-button {
     padding: 10px 8px;
