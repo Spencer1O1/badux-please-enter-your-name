@@ -42,6 +42,18 @@ including the manually tuned 7px top and 20px bottom margins.
 Both final certificates show how many times assistance was requested, including
 intake and repeat requests in the same department. Starting a new application
 clears the count. This information lives only in memory with the current run.
+Both outcomes offer a locally generated 1200×900 PNG certificate, native sharing
+where supported, and a text-copy fallback. Copy result includes the name, frozen
+completion time or department reached, assistance count, and game link. Save
+certificate downloads the PNG. Challenge a friend copies a general game link
+without the applicant name, run seed, or result. Friends begin a fresh application.
+The office header also offers Refer a friend from intake onward. It copies the
+same general link, gives brief feedback without moving the layout, and preserves
+the active application and queue timer. Blocked clipboard access offers a
+selectable link beside the header control.
+No result is uploaded automatically. A separate sharing section leaves the
+certificate's stamp and personal-seal layout intact.
+
 The introductory note gives way to scraps from past applicants at each department,
 with small changes in the paper's position and tilt beneath a stationary clip.
 Action footnotes sit opposite their buttons, aligned with the form's right edge
@@ -65,9 +77,9 @@ followed by the files. Its first Tab goes to the first clerk statement.
 Every puzzle has a solution, but the queue imposes a shared deadline. Each stage offers a hint,
 native buttons support Tab and Space even when text entry is “out of service,”
 the application can be reset immediately, and
-reduced-motion preferences are respected. There are no popups, downloads,
-permissions, analytics, external assets, fonts, network calls, cookies or browser
-storage. Names exist only in the current page's memory. Please use a fictional
+reduced-motion preferences are respected. There are no analytics, external assets,
+fonts, automatic network calls, cookies or browser storage. Names exist only in
+the current page's memory unless the applicant chooses to save or share a certificate. Please use a fictional
 name; closing or resetting the page discards it. Hosting infrastructure may still
 record ordinary HTTP access logs.
 
@@ -235,6 +247,7 @@ not a downloadable document. “Shred application” clears the current applicat
 
 ### Source organization and checks
 
+- `site/sharing.js`: local certificate images, native sharing, clipboard and download fallbacks.
 - `site/app.js`: navigation, the sliding four-tab window, receipts and reset.
 - `site/departments.js`: department content, controls, validation and hints.
 - `site/rules.js`: pure name transformations, puzzle generation and solvers.

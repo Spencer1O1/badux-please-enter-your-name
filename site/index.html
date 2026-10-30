@@ -4,14 +4,20 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Your name is unofficial. Acquire one through the Department of Name Acquisition.">
+  <meta property="og:title" content="Department of Name Acquisition">
+  <meta property="og:description"
+    content="Your name is unofficial. Acquire one. Everyone else can remain unregistered.">
+  <meta property="og:type" content="website">
   <meta name="theme-color" content="#f3f0e5">
-  <title>Please enter your name. | Department of Name Acquisition</title>
+  <title>Department of Name Acquisition</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./style.css?v=20261030-departments-1">
+  <link rel="stylesheet" href="./style.css?v=20261030-header-referral-1">
   <link rel="stylesheet" href="./puzzles.css?v=20261030-pcb-substrate-1">
   <script src="./rules.js?v=20261030-carbon-2" defer></script>
   <script src="./departments.js?v=20261030-light-equipment-1" defer></script>
-  <script src="./app.js?v=20261030-assistance-clerk-1" defer></script>
+  <script src="./sharing.js?v=20261030-header-referral-1" defer></script>
+  <script src="./app.js?v=20261030-header-referral-1" defer></script>
 </head>
 
 <body>
@@ -22,7 +28,7 @@
     <a class="wordmark" href="./" aria-label="Department of Name Acquisition home"><span class="seal"
         aria-hidden="true">N</span><span>DEPARTMENT OF<br>NAME ACQUISITION</span></a>
     <div class="office-status"><span aria-hidden="true">●</span> OPEN, RELUCTANTLY <small>Your patience is our renewable
-        resource.</small></div>
+        resource.</small><div class="header-referral"><button class="text-button" id="refer-friend" type="button">Refer a friend ↗</button><p id="referral-feedback" class="referral-feedback" role="status" aria-live="polite" aria-atomic="true"></p><textarea id="referral-copy-field" class="sharing-copy-field referral-copy-field" aria-label="Challenge link to copy" readonly hidden></textarea></div></div>
   </header>
   <div class="queue-ticker" id="queue-ticker" hidden aria-hidden="true"><span>YOUR <strong
         id="ticker-number">—</strong></span><span>NOW <strong id="ticker-serving">—</strong></span><span

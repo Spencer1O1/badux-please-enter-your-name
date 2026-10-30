@@ -15,6 +15,7 @@
   let activeDepartment;
   let ticketRevealTimer = null;
   const ticketDialog = document.querySelector("#ticket-dialog");
+  NameOffice.sharing.mountReferral(document);
 
   function readRunSeed() {
     const requested = new URLSearchParams(location.hash.slice(1)).get("seed");
@@ -176,11 +177,11 @@
     stage.innerHTML = `<div class="certificate${complete ? "" : " certificate-missed"}">
       <p class="section-number">${complete ? "FORM N-01 / CASE ACTUALLY CLOSED" : "FORM N-01 / APPLICATION VOID"}</p>
       <span class="completion-star" aria-hidden="true">✳</span>
-      <h2 class="stage-title" id="stage-title" tabindex="-1">${complete ? "You have a name." : "You missed your turn."}</h2>
+      <h2 class="stage-title" id="stage-title" tabindex="-1">${complete ? "Your name is official." : "You missed your turn."}</h2>
       <p class="certificate-line">${complete ? "THIS CERTIFIES THAT" : "THIS OFFICE CONFIRMS THAT"}</p><p class="certificate-name applicant-name"></p>
-      <p class="certificate-line">${complete ? "IS, WITH UNREASONABLE CONFIDENCE,<br>A SEQUENCE OF LETTERS." : "WAS CALLED AS TICKET <span id='missed-number'></span><br>WITHOUT THE REQUIRED PAPERWORK."}</p>
+      <p class="certificate-line">${complete ? "HAS OFFICIALLY ACQUIRED A NAME." : "WAS CALLED AS TICKET <span id='missed-number'></span><br>WITHOUT THE REQUIRED PAPERWORK."}</p>
       <div class="outcome-stamp ${complete ? "approved-stamp" : "missed-stamp"}">${complete ? "APPROVED<small>YES. REALLY. YOU CAN GO.</small>" : "MISSED<small>NO. REALLY. START AGAIN.</small>"}</div>
-      <p class="stage-description">${complete ? "Twelve departments. One name. Zero practical benefit.<br>Your vowels have been returned. Your time has not.<br>This certificate is valid until you stop looking at it." : "Your paperwork wasn’t ready.<br><span id='missed-forms'></span> forms filed. Application void.<br>No extensions. Naturally."}</p>
+      <p class="stage-description">${complete ? "Twelve departments. One official name. Zero practical benefit.<br>Your vowels have been returned. Your time has not.<br>This certificate is valid until you stop looking at it." : "Your paperwork wasn’t ready.<br><span id='missed-forms'></span> forms filed. Application void.<br>No extensions. Naturally."}</p>
       <div class="run-result"><span class="micro">${complete ? "COMPLETION TIME" : "DEPARTMENT REACHED"}</span><output id="${complete ? "completion-time" : "missed-department"}"></output><small>${complete ? "From first department to final approval." : "New ticket. All paperwork starts over."}</small><small id="assistance-summary"></small></div>
       <div class="action-row"><button class="primary-button" id="${complete ? "another-button" : "missed-restart"}" type="button">${complete ? "Acquire another name" : "Take a new ticket"} <span class="button-arrow" aria-hidden="true">↺</span></button></div>
       <div class="personal-seal" aria-label="${complete ? "Your personal approval seal" : "Personal seal not issued"}"></div>
@@ -214,6 +215,13 @@
     }
     stage.querySelector(".personal-seal").append(svg);
     stage.querySelector(complete ? "#another-button" : "#missed-restart").addEventListener("click", reset);
+    NameOffice.sharing.mount(stage, {
+      complete, name: state.applicant, assistanceCount: state.assistanceCount,
+      time: complete ? R.formatRunTime(state.finishedAt - state.startedAt) : null,
+      departmentNumber: state.current + 1,
+      departmentName: complete ? departments.at(-1).label : departments[state.current].label,
+      glyphs: complete ? state.records.seal.glyphs : null
+    });
     activeDepartment = null;
   }
 

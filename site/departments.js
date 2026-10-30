@@ -53,7 +53,7 @@
       id: "Intake", label: "Intake", title: "Let's get started.",
       paperwork: { hold: "Name required.", approval: "Name chosen." },
       description: "Enter your name, first and last. 6–20 letters total.",
-      body: input("Your entirely fictional name", "name-input", "e.g. Dr. Doofenshmirtz") + `<p class="deadline-rule">Finish before your number is called.</p>`,
+      body: input("Your entirely fictional name", "name-input", "e.g. Dr. Doofenshmirtz"),
       action: "Begin paperwork", footnoteLabel: "NO ID REQUIRED", footnote: "(We wouldn't know what to do with it)",
       note: { text: "First and last name only. A pretend one is ideal.", author: "Management, 1987" },
       mount: ({ root }) => ({
@@ -851,7 +851,7 @@
           validate: () => value() === target ? "" : "Copy mismatch. Undo or reload, then try again.",
           hint: () => {
             const path = R.copySolution(value(), target);
-            return path.length <= 5 - history.length ? "From here: " + (path.length ? path.map(i => R.copyOperations[i].label).join(" → ") : "submit.") : "Reload, then: " + R.copySolution(start, target).map(i => R.copyOperations[i].label).join(" → ");
+            return path.length <= 5 - history.length ? "From here: " + (path.length ? path.map(i => R.copyOperations[i].label).join(" → ") : "submit.") : "Revert, then: " + R.copySolution(start, target).map(i => R.copyOperations[i].label).join(" → ");
           }
         };
       }
