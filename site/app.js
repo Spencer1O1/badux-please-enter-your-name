@@ -31,7 +31,13 @@
 
   function announce(value, kind = "") {
     message.className = "message" + (kind ? " " + kind : "");
-    message.textContent = value;
+    message.replaceChildren();
+    if (!value) return;
+    const text = document.createElement("span");
+    text.className = "message-text";
+    text.textContent = value;
+    if (kind === "hint") message.append(NameOffice.clerkAvatar(4));
+    message.append(text);
   }
 
   function stopQueue() {
@@ -163,6 +169,7 @@
     document.querySelector("#page-count").textContent = state.lost ? "TURN MISSED. APPLICATION VOID." : complete ? "END OF PAPERWORK. ACTUALLY." : `PAGE ${state.current + 1} OF UNNECESSARY PAPERWORK`;
     document.querySelector("#form-number").textContent = state.lost ? "VOID" : complete ? "N-01 ✓" : `N-${String(state.current + 1).padStart(2, "0")}`;
     hintButton.hidden = complete || state.lost;
+    message.hidden = complete || state.lost;
   }
 
   function renderOutcome(complete) {
@@ -224,9 +231,9 @@
       const department = departments[state.current];
       // Only authored templates enter HTML. All applicant text uses textContent.
       stage.innerHTML = `<form id="department-form" novalidate>
-        <p class="section-number">DEPARTMENT ${String(state.current + 1).padStart(2, "0")} / ${department.department}</p>
+        <p class="section-number">DEPARTMENT ${String(state.current + 1).padStart(2, "0")} / ${department.label.toUpperCase()}</p>
         <h2 class="stage-title" id="stage-title" tabindex="-1">${department.title}</h2>
-        <p class="stage-description" id="instructions">${department.description}</p>
+        ${department.instructionClerk === false ? `<p class="stage-description" id="instructions">${department.description}</p>` : `<div class="clerk-instruction"><p class="stage-description" id="instructions">${department.description}</p></div>`}
         ${department.body}
         <div class="action-row">
           <button class="primary-button" type="submit">${department.action}<span class="button-arrow" aria-hidden="true">→</span></button>
@@ -236,10 +243,11 @@
           </span>
         </div>
       </form>`;
+      stage.querySelector(".clerk-instruction")?.prepend(NameOffice.clerkAvatar(state.current % 4));
       activeDepartment = department.mount({
         root: stage, applicant: state.applicant, records: state.records, announce,
-        random: R.createRandom(state.seed, state.applicant, department.label),
-        appearanceRandom: R.createRandom(state.seed, state.applicant, `${department.label}/appearance`)
+        random: R.createRandom(state.seed, state.applicant, department.id),
+        appearanceRandom: R.createRandom(state.seed, state.applicant, `${department.id}/appearance`)
       });
       stage.querySelector("form").addEventListener("submit", submit);
       stage.querySelectorAll("input").forEach(input => input.addEventListener("input", () => {

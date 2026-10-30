@@ -58,6 +58,7 @@ for (const engine of engines) {
           await page.locator("#hint-button").click();
           assistanceCount++;
           assert.equal(await page.locator("#message").evaluate(node => node.classList.contains("hint")), true);
+          assert.equal(await page.locator("#message .clerk-speaker").getAttribute("data-clerk"), "4", "every department uses the dedicated assistance clerk");
         };
         const screenshot = async label => {
           if (screenshotDirectory) {
@@ -73,7 +74,7 @@ for (const engine of engines) {
         assert.equal(await page.locator("body").getAttribute("data-queue-phase"), "waiting");
         assert.equal(await page.locator(".queue").isVisible(), true);
         assert.equal(await page.locator(".office-note").isVisible(), true);
-        assert.equal(await page.locator("#message").evaluate(node => node.getBoundingClientRect().height), 0, "an empty status must not leave a bar or blank panel");
+        assert.ok(await page.locator("#message").evaluate(node => node.getBoundingClientRect().height > 0 && getComputedStyle(node).visibility === "hidden"), "empty feedback must reserve space with no visible border");
         const clipPosition = () => page.locator(".office-note").evaluate(note => {
           const clip = note.querySelector(".paperclip").getBoundingClientRect();
           const anchor = note.getBoundingClientRect();
@@ -89,7 +90,7 @@ for (const engine of engines) {
             assert.deepEqual(await page.locator(".progress li span").allTextContents(), expected);
           }
           assert.equal(parseInt(await page.locator("#receipt-count").textContent(), 10), number - 1);
-          const entryFocus = ["#name-input", "#name-input", "#name-input", ".name-tile", ".loose-letter", ".lock-arrow", ".letter-stamp", ".archive-file", ".desk-maze", ".circuit-switch", ".copy-controls button", ".seal-cell:not(:disabled)"][number - 1];
+          const entryFocus = ["#name-input", "#name-input", "#name-input", ".name-tile", ".loose-letter", ".lock-arrow", ".letter-stamp", ".archive-clerk", ".desk-maze", ".circuit-switch", ".copy-controls button", ".seal-cell:not(:disabled)"][number - 1];
           if (number <= 3) {
             assert.equal(await page.locator(entryFocus).first().evaluate(node => node === document.activeElement), true);
           } else {
@@ -110,7 +111,7 @@ for (const engine of engines) {
           assert.equal(await page.locator("#receipt-comment").textContent(), receiptBeforeHint, "hints don't alter approved paperwork or the current hold");
           const messageCenterOffset = await page.locator("#message").evaluate(node => {
             const range = document.createRange();
-            range.selectNodeContents(node);
+            range.selectNodeContents(node.querySelector(".message-text"));
             const text = range.getBoundingClientRect();
             const box = node.getBoundingClientRect();
             return Math.abs((text.top + text.bottom) / 2 - (box.top + box.bottom) / 2);
@@ -165,7 +166,7 @@ for (const engine of engines) {
           await tiles.nth(index).focus();
           await page.keyboard.press("Space");
         }
-        assert.equal(await page.locator("#message").evaluate(node => node.getBoundingClientRect().height), 0);
+        assert.ok(await page.locator("#message").evaluate(node => node.getBoundingClientRect().height > 0 && getComputedStyle(node).visibility === "hidden"));
         await submit();
         await stage(5);
         assert.equal(await page.locator("#stage input").count(), 0, "recovery must have no text field");
@@ -279,8 +280,7 @@ for (const engine of engines) {
         await pickStamp(wrongStamp);
         await expectError();
         assert.notEqual(await trayOrder(), beforeWrongStamp);
-        await pickStamp(stampChars[0]);
-        await page.locator("#reset-stamps").click();
+        assert.equal(R.normalizeName(await page.locator("#stamped-name").textContent()), "", "a wrong stamp clears the stamped name automatically");
         let stampPosition = 0;
         while (stampPosition < stampChars.length) {
           const before = await trayOrder();
@@ -308,9 +308,24 @@ for (const engine of engines) {
         const liar = archiveTruths(original[0]).indexOf(false);
         const linkedClue = archiveClues.find(clue => clue.slot !== null);
         const linkedIndex = archiveClues.indexOf(linkedClue);
-        await page.locator(".archive-clerk").nth(linkedIndex).focus();
+        const linkedClerk = page.locator(".archive-clerk").nth(linkedIndex);
+        await linkedClerk.focus();
+        assert.equal(await page.locator(".archive-linked").count(), 0, "focus alone must not pin linked highlights");
+        await linkedClerk.hover();
         assert.equal(await page.locator(".archive-file strong .archive-linked").count(), 6);
         assert.equal(await page.locator(".name-index .archive-linked").count(), 1);
+        await page.locator("#hint-button").hover();
+        assert.equal(await page.locator(".archive-linked").count(), 0, "moving off a clerk must clear linked highlights");
+        await linkedClerk.focus();
+        await page.keyboard.down("Space");
+        assert.equal(await page.locator(".archive-file strong .archive-linked").count(), 6);
+        await page.keyboard.up("Space");
+        assert.equal(await linkedClerk.getAttribute("aria-pressed"), "true");
+        assert.equal(await page.locator(".archive-linked").count(), 0, "a selected clerk must not keep linked fields highlighted after release");
+        if (layout.touch) {
+          await linkedClerk.tap();
+          assert.equal(await page.locator(".archive-linked").count(), 0, "touch release must clear highlights even while the tapped clerk retains focus");
+        }
         await submit();
         await expectError();
         const incompleteArchiveError = await page.locator("#message").textContent();
@@ -341,13 +356,6 @@ for (const engine of engines) {
         await submit();
         await stage(9);
         await screenshot("transit");
-        if (layout.touch) {
-          await page.locator("#maze-zoom").tap();
-          assert.equal(await page.locator("#maze-zoom").getAttribute("aria-pressed"), "true");
-          assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, "the enlarged map must scroll inside its frame");
-          await page.locator("#maze-zoom").tap();
-          assert.equal(await page.locator("#maze-zoom").getAttribute("aria-pressed"), "false");
-        }
         const readMaze = () => page.locator(".desk-maze").evaluate(board => ({
           width: Number(board.dataset.width), start: Number(board.dataset.entrance),
           passages: [...board.querySelectorAll(".maze-cell")].map(node => JSON.parse(node.dataset.passages)),
@@ -362,23 +370,74 @@ for (const engine of engines) {
         assert.equal(maze.start, 112);
         assert.equal(await page.locator("#department-form [type=submit]").isDisabled(), true);
         assert.equal(await page.locator(".maze-cell").count(), 225);
+        assert.equal(await page.locator(".current-desk .maze-plane").count(), 1);
+        assert.equal(await page.locator(".desk-maze").getAttribute("data-facing"), "up");
         const layoutBefore = JSON.stringify(maze);
         await page.locator('.maze-cell[data-cell="0"]').click();
-        await expectError();
-        // Arrows and touch buttons travel to the next decision, rather than one tile.
+        assert.equal(await page.locator(".desk-maze").getAttribute("data-position"), String(maze.start), "pressing an unavailable square does not move the plane");
+        assert.equal(await page.locator(".desk-maze").getAttribute("data-facing"), "up", "blocked moves keep the plane's heading");
+        // Keyboard arrows travel to the next decision, rather than one tile.
         const keyNeighbor = maze.passages[maze.start][0];
         const keyOffset = keyNeighbor - maze.start;
         const keyDirection = { [-maze.width]: "up", 1: "right", [maze.width]: "down", "-1": "left" }[keyOffset];
         const keyTarget = R.mazeRun(maze, { position: maze.start, collected: 0 }, keyOffset);
         const keyResult = R.mazeMove(maze, { position: maze.start, collected: 0 }, keyTarget);
-        if (layout.touch) await page.locator(`[data-direction="${keyDirection}"]`).tap();
-        else {
-          await page.locator(".desk-maze").focus();
-          await page.keyboard.press(`Arrow${keyDirection[0].toUpperCase() + keyDirection.slice(1)}`);
-        }
+        await page.locator(".desk-maze").focus();
+        await page.keyboard.press(`Arrow${keyDirection[0].toUpperCase() + keyDirection.slice(1)}`);
         assert.equal(Number(await page.locator(".desk-maze").getAttribute("data-position")), keyResult.position);
+        assert.equal(await page.locator(".desk-maze").getAttribute("data-facing"), keyResult.kind === "wrong" ? "up" : keyDirection);
         await page.locator("#restart-maze").click();
         assert.equal(await page.locator(".desk-maze").getAttribute("data-position"), String(maze.start));
+        assert.equal(await page.locator(".desk-maze").getAttribute("data-facing"), "up", "restart restores the initial heading");
+        const touchSession = layout.touch ? await page.context().newCDPSession(page) : null;
+        async function dragAlong(path, pressedCell = null) {
+          await page.locator(".desk-maze").scrollIntoViewIfNeeded();
+          const from = Number(await page.locator(".desk-maze").getAttribute("data-position"));
+          const center = cell => page.locator(`.maze-cell[data-cell="${cell}"]`).evaluate(node => {
+            const rect = node.getBoundingClientRect();
+            return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+          });
+          const origin = await center(pressedCell ?? from);
+          if (touchSession) await touchSession.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ ...origin, id: 1 }] });
+          else { await page.mouse.move(origin.x, origin.y); await page.mouse.down(); }
+          if (pressedCell !== null) assert.equal(Number(await page.locator(".desk-maze").getAttribute("data-position")), pressedCell, "pressing a green square moves immediately, before release");
+          try {
+            // Compress straight runs into one pointer event to exercise fast dragging.
+            let previous = pressedCell ?? from;
+            for (let i = 0; i < path.length;) {
+              const offset = path[i] - previous;
+              let target = path[i++];
+              while (i < path.length && path[i] - target === offset) target = path[i++];
+              const point = await center(target);
+              if (touchSession) await touchSession.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ ...point, id: 1 }] });
+              else await page.mouse.move(point.x, point.y);
+              previous = target;
+              if (!await page.locator(".desk-maze").evaluate(node => node.classList.contains("dragging-plane"))) break;
+            }
+          } finally {
+            if (touchSession) await touchSession.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+            else await page.mouse.up();
+          }
+        }
+        const firstPickup = maze.pickups[0].cell;
+        await dragAlong(R.mazePath(maze, maze.start, firstPickup));
+        assert.equal(await page.locator(".desk-maze").getAttribute("data-collected"), "1", "dragging collects intermediate letters using the normal rules");
+        assert.equal(Number(await page.locator(".desk-maze").getAttribute("data-position")), firstPickup, "release must not trigger an extra click");
+        const wallNeighbor = [firstPickup - maze.width, firstPickup + maze.width, firstPickup - 1, firstPickup + 1]
+          .find(cell => cell >= 0 && cell < maze.width ** 2 && Math.abs(cell % maze.width - firstPickup % maze.width) + Math.abs(Math.floor(cell / maze.width) - Math.floor(firstPickup / maze.width)) === 1 && !maze.passages[firstPickup].includes(cell));
+        await dragAlong([wallNeighbor]);
+        assert.equal(Number(await page.locator(".desk-maze").getAttribute("data-position")), firstPickup, "dragging cannot cross a wall");
+        assert.equal(await page.locator(".desk-maze").evaluate(node => node.classList.contains("dragging-plane")), false);
+        assert.equal(await page.locator(".current-desk").evaluate(node => getComputedStyle(node).backgroundColor), await page.locator(".reachable:not(.maze-piece)").first().evaluate(node => getComputedStyle(node).backgroundColor), "the plane uses the ordinary reachable-square color");
+        await page.locator("#restart-maze").click();
+        const greenPath = R.mazePath(maze, maze.start, firstPickup);
+        let initialRun = 0;
+        const initialOffset = greenPath[0] - maze.start;
+        while (initialRun + 1 < greenPath.length && greenPath[initialRun + 1] - greenPath[initialRun] === initialOffset) initialRun++;
+        await dragAlong(greenPath.slice(initialRun + 1), greenPath[initialRun]);
+        assert.equal(Number(await page.locator(".desk-maze").getAttribute("data-position")), firstPickup, "a press away from the plane continues as a drag");
+        assert.equal(await page.locator(".desk-maze").getAttribute("data-collected"), "1");
+        await page.locator("#restart-maze").click();
         let longMoves = 0;
         async function walk(path, stopAtReset = false) {
           let from = Number(await page.locator(".desk-maze").getAttribute("data-position"));
@@ -392,6 +451,9 @@ for (const engine of engines) {
             if (layout.touch) await square.tap(); else await square.click();
             if (stopAtReset && await page.locator("#message").evaluate(node => node.classList.contains("error"))) return;
             assert.equal(Number(await page.locator(".desk-maze").getAttribute("data-position")), target);
+            const direction = Math.abs(target - from) >= maze.width ? target < from ? "up" : "down" : target < from ? "left" : "right";
+            assert.equal(await page.locator(".desk-maze").getAttribute("data-facing"), direction, "the plane faces the last pointer move");
+            assert.equal(await page.locator(".current-desk .maze-plane").count(), 1);
             from = target;
           }
         }
@@ -410,6 +472,11 @@ for (const engine of engines) {
           position = piece.cell;
         }
         if (wrongRoute) {
+        await dragAlong([...prefix, ...wrongRoute]);
+        await expectError();
+        assert.equal(await page.locator(".desk-maze").getAttribute("data-position"), String(maze.start), "a wrong letter during dragging resets to the center");
+        assert.equal(await page.locator(".desk-maze").getAttribute("data-collected"), "0");
+        assert.equal(await page.locator(".desk-maze").evaluate(node => node.classList.contains("dragging-plane")), false, "wrong letters end the drag");
         await walk(prefix);
         await walk(wrongRoute, true);
         await expectError();
@@ -723,7 +790,9 @@ for (const engine of engines) {
       assert.equal(await page.locator(".certificate-missed").count(), 1);
       assert.equal(await page.locator("#missed-number").textContent(), String(ticket));
       assert.equal(await page.locator("#missed-forms").textContent(), "2");
-      assert.equal(await page.locator("#missed-department").textContent(), await page.evaluate(() => `03 · ${NameOffice.departments[2].label}`));
+      const reached = await page.locator("#missed-department").textContent();
+      assert.equal(parseInt(reached, 10), 3);
+      assert.ok(reached.endsWith(await page.evaluate(() => NameOffice.departments[2].label)));
       assert.equal(Number((await page.locator("#assistance-summary").textContent()).match(/\d+/)?.[0]), 3);
       const outcomeLayout = await page.locator(".certificate-missed").evaluate(certificate => {
         const stamp = certificate.querySelector(".outcome-stamp");

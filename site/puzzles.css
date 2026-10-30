@@ -273,8 +273,8 @@
 .archive-files {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 18px 10px;
-  margin-top: 18px;
+  gap: 14px 10px;
+  margin-top: 12px;
 }
 
 .archive-file,
@@ -285,7 +285,7 @@
   box-shadow: 3px 3px 0 #e1e2d3;
   cursor: pointer;
   text-align: left;
-  padding: 14px;
+  padding: 10px;
 }
 
 .archive-file small {
@@ -293,8 +293,8 @@
   align-items: baseline;
   gap: 6px;
   font: 9px var(--mono);
-  margin: 0 -6px 6px;
-  padding: 4px 6px;
+  margin: 0 -6px 4px;
+  padding: 2px 6px;
 }
 
 .archive-file small b {
@@ -319,12 +319,12 @@
 
 .archive-owner {
   display: block;
-  padding: 4px;
+  padding: 2px;
   background: var(--ink);
   color: var(--cream);
   font: 7px/1.5 var(--mono);
   text-align: center;
-  margin-bottom: 14px;
+  margin-bottom: 7px;
 }
 
 .archive-code-label {
@@ -351,13 +351,14 @@
 
 .archive-clerks {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
 .archive-clerk {
   display: grid;
-  grid-template-columns: 57px minmax(0, 1fr) 24px;
-  gap: 10px;
+  grid-template-columns: 43px minmax(0, 1fr) 24px;
+  gap: 8px;
   font: 12px/1.5 var(--sans);
 }
 
@@ -380,7 +381,7 @@
   display: flex;
   align-items: center;
   gap: 9px;
-  margin: 22px 0 16px;
+  margin: 16px 0 10px;
   font-size: 14px;
   font-weight: bold;
 }
@@ -396,20 +397,25 @@
 }
 
 .archive-review {
-  margin-top: 24px;
-  padding: 0 12px 14px;
-  border: 1px solid var(--line);
-  background: #f0f1e7;
+  margin-top: 14px;
 }
 
-.archive-review .archive-step {
-  margin-top: 14px;
-  margin-bottom: 8px;
+.archive-clerk .clerk-avatar {
+  width: 32px;
+  height: 32px;
+}
+
+.archive-clerk .clerk-waves {
+  width: 8px;
+}
+
+.archive-clerk .clerk-speaker {
+  padding-top: 0;
 }
 
 .archive-context {
   display: block;
-  margin: 0 0 16px 33px;
+  margin: 0 0 10px 33px;
   font: 10px var(--mono);
   color: var(--muted);
 }
@@ -459,19 +465,6 @@
   margin: 18px 0 8px;
 }
 
-.maze-viewport.zoomed {
-  max-height: 60vh;
-}
-
-.maze-viewport.zoomed .desk-maze {
-  width: 600px;
-  max-width: none;
-}
-
-.maze-tools {
-  text-align: right;
-}
-
 .desk-maze {
   display: grid;
   grid-template-columns: repeat(var(--maze-width), minmax(0, 1fr));
@@ -482,7 +475,8 @@
   margin: 0 auto;
   border: 1px solid var(--ink);
   background: #f7f7ee;
-  touch-action: manipulation;
+  touch-action: none;
+  user-select: none;
 }
 
 .maze-cell {
@@ -536,46 +530,24 @@
 }
 
 .maze-cell.current-desk {
-  background: var(--lime);
+  background: #e2e9c9;
   color: transparent;
+  cursor: pointer;
 }
 
-.maze-cell.current-desk::after {
-  content: "●";
-  display: grid;
-  place-items: center;
+.desk-maze.dragging-plane,
+.dragging-plane .maze-cell {
+  cursor: pointer;
+  user-select: none;
+}
+
+.maze-plane {
   position: absolute;
-  inset: 0;
-  color: var(--ink);
-  font-size: 12px;
-}
-
-.maze-directions {
-  display: grid;
-  grid-template-columns: repeat(3, 48px);
-  grid-template-rows: repeat(2, 46px);
-  justify-content: center;
-  gap: 6px;
-  margin: 16px 0;
-}
-
-.maze-directions [data-direction=up] {
-  grid-column: 2;
-}
-
-.maze-directions [data-direction=left] {
-  grid-row: 2;
-  grid-column: 1;
-}
-
-.maze-directions [data-direction=down] {
-  grid-row: 2;
-  grid-column: 2;
-}
-
-.maze-directions [data-direction=right] {
-  grid-row: 2;
-  grid-column: 3;
+  inset: 10%;
+  width: 80%;
+  height: 80%;
+  transform: rotate(var(--plane-angle));
+  pointer-events: none;
 }
 
 .name-index {
@@ -823,7 +795,7 @@
   border-radius: 8px;
   background: #d5d7cb;
   box-shadow: 3px 4px 0 #afb5a4;
-  --copy-seal: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20500%20160%22%3E%3Cg%20transform%3D%22rotate%28-8%20250%2080%29%22%20fill%3D%22none%22%20stroke%3D%22%237d6952%22%20stroke-width%3D%223%22%3E%3Crect%20x%3D%2212%22%20y%3D%2245%22%20width%3D%22476%22%20height%3D%2270%22%20rx%3D%223%22%2F%3E%3Ctext%20x%3D%22250%22%20y%3D%2294%22%20text-anchor%3D%22middle%22%20fill%3D%22%237d6952%22%20stroke%3D%22none%22%20font-family%3D%22Georgia%2Cserif%22%20font-weight%3D%22bold%22%20font-size%3D%2236%22%20letter-spacing%3D%224%22%3EOFFICIAL%20COPY%3C%2Ftext%3E%3C%2Fg%3E%3C%2Fsvg%3E");
+  --copy-seal: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20500%20160%22%3E%3Cg%20transform%3D%22translate%2850%2016%29%20scale%28.8%29%20rotate%28-8%20250%2080%29%22%20fill%3D%22none%22%20stroke%3D%22%237d6952%22%20stroke-width%3D%223%22%3E%3Crect%20x%3D%2212%22%20y%3D%2245%22%20width%3D%22476%22%20height%3D%2270%22%20rx%3D%223%22%2F%3E%3Ctext%20x%3D%22250%22%20y%3D%2294%22%20text-anchor%3D%22middle%22%20fill%3D%22%237d6952%22%20stroke%3D%22none%22%20font-family%3D%22Georgia%2Cserif%22%20font-weight%3D%22bold%22%20font-size%3D%2236%22%20letter-spacing%3D%224%22%3EOFFICIAL%20COPY%3C%2Ftext%3E%3C%2Fg%3E%3C%2Fsvg%3E");
 }
 
 .copy-machine-header {
@@ -901,7 +873,7 @@
   background-size: 500% auto;
   background-repeat: no-repeat;
   background-position: calc(var(--strip) * 25%) center;
-  opacity: .14;
+  opacity: .06;
 }
 
 .copy-strips small {
@@ -980,6 +952,12 @@
   font-size: 9px;
 }
 
+/* Keep both copier tools equally readable, including before the first move. */
+.copy-machine .text-button:disabled {
+  opacity: 1;
+  text-decoration: underline;
+}
+
 @media(max-width:650px) {
   .copy-strips b {
     font-size: 14px;
@@ -998,7 +976,6 @@
 
 .seal-example small {
   display: block;
-  margin-top: 6px;
   font: 10px var(--sans);
   word-spacing: normal;
   color: var(--muted);
@@ -1143,7 +1120,7 @@
   }
 
   .archive-file {
-    padding: 12px;
+    padding: 8px;
   }
 
   .archive-file strong {
@@ -1151,9 +1128,46 @@
   }
 
   .archive-clerk {
-    grid-template-columns: 43px minmax(0, 1fr) 24px;
-    gap: 8px;
-    padding: 12px 8px;
+    grid-template-columns: 24px minmax(0, 1fr) 18px;
+    grid-template-rows: 24px 1fr;
+    gap: 6px 4px;
+    padding: 8px;
+    font-size: 11px;
+  }
+
+  .archive-clerk .clerk-speaker {
+    grid-area: 1 / 1;
+  }
+
+  .archive-clerk .clerk-speaker .clerk-avatar {
+    width: 24px;
+    height: 24px;
+  }
+
+  .archive-clerk .clerk-waves {
+    display: none;
+  }
+
+  .archive-clerk .clerk-speech {
+    display: contents;
+  }
+
+  .archive-clerk .clerk-speech strong {
+    grid-area: 1 / 2;
+    align-self: center;
+    font-size: 9px;
+    line-height: 1.3;
+  }
+
+  .archive-clerk .clerk-claim {
+    grid-area: 2 / 1 / 3 / 4;
+    margin-top: 0;
+  }
+
+  .archive-clerk .archive-verdict {
+    grid-area: 1 / 3;
+    width: 18px;
+    height: 18px;
   }
 
   .clerk-speaker .clerk-avatar {
@@ -1222,15 +1236,9 @@
     font-size: 6px;
   }
 
-  .zoomed .maze-cell {
-    font-size: 15px;
-  }
 
 
 
-  .zoomed .maze-cell:not(.maze-piece) {
-    font-size: 10px;
-  }
 
   .name-section strong {
     font-size: 13px;
@@ -1444,4 +1452,91 @@
 
 #missed-department {
   font-size: clamp(23px, 3vw, 32px);
+}
+
+/* A small service window at the far end of Check-In's hall. */
+.distant-office {
+  position: relative;
+  height: 112px;
+  margin: 0 0 22px;
+  overflow: hidden;
+  background: #f6f4e9;
+  border: 1px solid var(--line);
+}
+
+.office-perspective {
+  display: block;
+  width: 100%;
+  height: 100%;
+  stroke: #c9cbbd;
+  stroke-width: 1;
+}
+
+.office-back-wall {
+  fill: #eeeee2;
+}
+
+.distant-window {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 42px;
+  height: 59px;
+  border: 1px solid #8c9482;
+  background: #fffef8;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.distant-window-number {
+  width: 100%;
+  padding: 2px 0;
+  text-align: center;
+  color: var(--paper);
+  background: #536251;
+  font: 8px/1.2 var(--mono);
+}
+
+.distant-clerk {
+  margin-top: 6px;
+}
+
+.distant-clerk .clerk-speaker {
+  padding: 0;
+}
+
+.distant-clerk .clerk-avatar {
+  width: 24px;
+  height: 24px;
+}
+
+.distant-clerk .clerk-waves {
+  display: none;
+}
+
+.distant-counter {
+  position: absolute;
+  bottom: -2px;
+  left: -4px;
+  right: -4px;
+  height: 12px;
+  background: #8b937d;
+  border-top: 3px solid #536251;
+}
+
+.archive-puzzle .reference-name {
+  margin-bottom: 10px;
+}
+
+.archive-puzzle .name-index {
+  margin: 10px 0;
+  gap: 4px;
+}
+
+.archive-puzzle .name-index>span {
+  min-width: 23px;
+  padding: 3px;
+  font-size: 12px;
 }

@@ -25,7 +25,7 @@ begins the reveal. The queue starts after that reveal finishes: Now serving
 advances once every 10 seconds. Opening instructions, invalid intake and reading the ticket do not
 use the window. Escape returns to intake without taking the ticket. Taking it
 reveals and briefly pulses the counter, then clears the rest of the page and
-focuses Volume’s input. Reduced motion skips the effect. The queue keeps moving in background tabs and catches up from
+focuses Check-In’s input. Reduced motion skips the effect. The queue keeps moving in background tabs and catches up from
 elapsed time on return. Finish and submit all paperwork before your number is
 called, or a voided certificate replaces the form. Success and failure share
 one centered certificate layout, name placement, seal frame, stamp spacing,
@@ -51,8 +51,16 @@ Inputs use a subtle inset focus border. Text-entry levels autofocus the input. O
 without a control highlight; the first Tab goes to the primary puzzle control,
 including the maze board and first editable seal cell.
 Initial intake focuses the name input without scrolling past the introduction. On narrow screens the queue becomes a
-compact strip and the notes sit below the form. Empty status messages collapse;
-visible messages keep their text centered beside the status bar.
+compact strip and the notes sit below the form. The status area reserves space for
+messages even when empty; its border stays hidden until there is a message.
+The reserved area stays compact on all screens; longer wrapped messages can grow
+as needed. Outcome certificates hide the status area. Each department has a consistent clerk from the four Archives
+portraits, shown beside its instruction. A separate fifth assistance clerk delivers
+requested hints throughout the game.
+Check-In depicts its clerk in a small service window at the end of a perspective
+hall, instead of beside the instruction. Archives omits
+it because all four clerks speak in the puzzle; their statements appear first,
+followed by the files. Its first Tab goes to the first clerk statement.
 
 Every puzzle has a solution, but the queue imposes a shared deadline. Each stage offers a hint,
 native buttons support Tab and Space even when text entry is “out of service,”
@@ -63,15 +71,22 @@ storage. Names exist only in the current page's memory. Please use a fictional
 name; closing or resetting the page discards it. Hosting infrastructure may still
 record ordinary HTTP access logs.
 
-Letter-building activities (Recovery, Stamps and Transit) reset progress on a
-wrong letter. Recovery restores every scattered piece; Stamps clears the name
+Letter-building activities (Restoration, Certification and Routing) reset progress on a
+wrong letter. Restoration restores every scattered piece; Certification clears the name
 and reshuffles the tray. Green salvage pieces use a matching green hover border.
-Recovery omits space pieces and restores word spacing in its progress display.
-Transit collects only the first name, with no space pieces. Secrecy omits spaces from its encrypted groups, and Stamps inserts
+Restoration omits space pieces and restores word spacing in its progress display.
+Routing collects only the first name, with no space pieces. A paper airplane marks
+the current position and faces its last successful movement direction. Blocked
+moves keep its heading; restarting or collecting a wrong letter returns it to the
+center facing up. Pressing any green square moves immediately. Holding the pointer down continues
+through each crossed valid square, including during fast drags. Taps and drags
+share the same movement and letter rules; no plane-grabbing gesture is needed. Its square uses
+the same green as valid destinations. The map fits the page; on-screen direction
+and enlargement controls are omitted. Keyboard arrows and WASD remain available. Security omits spaces from its encrypted groups, and Certification inserts
 word breaks automatically. Full-name forms and exact-copy evidence retain the name’s
-formatting. Archive numbers only letters, omitting spaces from both its reference
+formatting. Archives numbers only letters, omitting spaces from both its reference
 and filing-note positions. Nameplate rows
-separate first and last names without space tiles; Carbon also strips spaces.
+separate first and last names without space tiles; Reprographics also strips spaces.
 
 ## Paper trail and messages
 
@@ -82,28 +97,28 @@ same fields for both receipt status and the handoff after successful submission.
 - The receipt always shows **Last cleared** (the previous approval) and
   **Current hold** (the current department’s requirement). Intake starts with
   nothing filed. Completion changes Current hold to Disposition: case closed.
-  Archive’s approval includes the actual retrieved file number. Hints, mistakes
+  Archives’s approval includes the actual retrieved file number. Hints, mistakes
   and edits do not change these case records. Missing a turn marks the case void.
   Shredding resets the paperwork and queue deadline.
 - Past-applicant notes provide a different personal account for each department.
 - The bottom message gives immediate feedback: errors, hints, puzzle actions, or
-  a specific approval and referral. Editing an answer or changing an Archive
+  a specific approval and referral. Editing an answer or changing an Archives
   selection clears obsolete feedback.
 
 | Department | Paperwork purpose |
 | --- | --- |
 | Intake | Register the fictional name |
-| Volume | Supply the clerk’s capitalized copy |
+| Check-In | Supply the clerk’s capitalized copy |
 | Customs | Obtain vowel clearance |
-| Evidence | Verify three exact name copies |
-| Recovery | Salvage an application from the office shredder |
-| Secrecy | Unlock the confidential personnel file |
-| Stamps | Stamp and file the form |
-| Archive | Retrieve a misfiled application and correct its filing note |
-| Transit | Recover the name from internal mail |
-| Sustainability / Energy | Obtain the nameplate’s energy permit |
-| Carbon | Reconcile the copier’s damaged copy |
-| Approval | Make a personal seal and authorize the application |
+| Verification | Verify three exact name copies |
+| Restoration | Salvage an application from the office shredder |
+| Security | Unlock the confidential personnel file |
+| Certification | Stamp and file the form |
+| Archives | Retrieve a misfiled application and correct its filing note |
+| Routing | Recover the name from internal mail |
+| Electrical | Obtain the nameplate’s power clearance |
+| Reprographics | Reconcile the copier’s damaged copy |
+| Approvals | Make a personal seal and authorize the application |
 
 ## Files and preview
 
@@ -120,13 +135,13 @@ a new seed and updates the URL; reloading the current URL replays its seed.
 Malformed seed fragments are replaced with a fresh seed.
 
 Each department derives its own random stream from the run seed, cleaned name
-and department label. Recovery's paper placement and the applicant notes use
+and stable department identifier. Display-name changes do not alter puzzle seeds. Restoration's paper placement and the applicant notes use
 separate cosmetic streams. Hints, time spent and mistakes in earlier departments
 cannot change later puzzles. Stage resets keep their original setup. The stamp
 tray still reshuffles after every pick, with a reproducible sequence for the same
 actions. Intake, capitalization and vowel clearance retain their fixed rules;
 initials keep their letter shapes, with any required fixed cells seeded per run.
-Energy always requires exactly three active circuits; the seed selects its
+Electrical always requires exactly three active circuits; the seed selects its
 starting lights. Six-section nameplates have a unique solution. For comparable speedruns, use the same
 URL, name and game version, and compare assistance totals alongside elapsed time.
 
@@ -135,22 +150,23 @@ recognition. Later departments recover scattered name letters, decode a referenc
 using the name as a codebook, stamp the name while a clerk rearranges a twelve-stamp tray,
 find an original file by cross-checking clerk statements against the name,
 recover the name through a maze,
-request a nameplate energy permit through Sustainability, and reassemble its five
-carbon strips in four operations. The last department is Self-Authorization:
+request a nameplate power clearance through Electrical, and reassemble its five
+carbon strips in four operations. The last department is Approvals:
 solve two ink-grid puzzles for the applicant’s initials, then stamp the approval.
 The completed monogram appears as a small clockwise-tilted seal at the bottom
 right of the certificate, outside the main text column. This is a standalone puzzle;
 no answers from earlier departments are needed.
 
-Department 06 is Secrecy: unlock a confidential personnel file using four
+Department 06 is Security: unlock a confidential personnel file using four
 combination wheels. Each digit shifts one encrypted group of name letters;
 each wheel applies its Caesar shift to its name group and every fourth letter of each
 assessment sentence. The first letter uses dial 1 on line 1, dial 2 on line 2,
 and so on; assignments repeat cyclically. Spaces and punctuation do not advance
 the cycle. Complete sentences need all four dials. Digits wrap from 9 to 0, and each
 nonempty group has exactly one correct digit. Wrong submissions reset the lock;
-assistance reveals the combination. All setups use the run's Secrecy stream.
-Department 07 is Stamp Duty: exactly three rows of four stamps, reshuffled
+assistance reveals the combination. All setups use the run's Security stream.
+Department 07 is Certification: mistakes automatically clear the stamped name,
+so there is no manual start-over control. Exactly three rows of four stamps are reshuffled
 after every pick. The tray uses wooden-handled rubber stamps with ink-red letter
 faces and a pressed state; it remains three rows of four on narrow screens.
 Each shuffle selects up to eight distinct name letters, always including the next
@@ -158,21 +174,27 @@ required letter, and fills the twelve-stamp tray with fresh A–Z choices. Alpha
 picks may also belong to the name. Choices are uppercase and distinct, with at
 least one new letter on every reshuffle; the run seed reproduces the sequence.
 
-Archive retrieves a misfiled application from six redacted folders. Four clerks’
+Archives retrieves a misfiled application from six redacted folders. Four clerks’
 quoted statements refer to numbered name letters and folder numbers; the number
 clue chooses even or odd with equal probability from the run seed. Four colored
 clerk portraits and speech-wave marks identify the speakers. Exactly one note
 is incorrect. Select the file matching three notes and flag the incorrect note.
-Two numbered steps separate file selection from marking a false statement. The
-review panel names the selected file; a red cross marks the chosen false note.
-Hovering, focusing or selecting a statement highlights its referenced code column
-and name letter without evaluating its truth for the player. Highlighted fields
+Tabs and section headings share a single department name.
+Two numbered steps put the clerk statements above the file selection. Statements
+use a compact two-by-two grid without an outer panel; narrow cards place their
+portrait and selection mark above the quote. Folder spacing and padding are
+compact so files and statements are easier to compare. A readout
+above the files names the selected file; a red cross marks the chosen false note.
+Hovering over or holding a statement highlights its referenced code column and
+name letter without evaluating its truth for the player. Touch and keyboard
+presses clear the linked highlights on release; selecting a clerk does not keep
+the fields highlighted. Highlighted fields
 have padded labels; the selected false statement uses a geometrically centered cross.
 Generated truth patterns guarantee one solution. All invalid submissions show the same instruction-only feedback, without
 confirming whether the file or statement selection is correct. The retrieved file
 number and filing code are retained in the application’s in-memory records.
 
-Department 10 is Sustainability (the Energy tab). Restore the applicant’s
+Department 10 is Electrical. Restore the applicant’s
 illuminated nameplate within its circuit allowance to obtain an energy permit.
 The first name occupies the first row and the last name the second, with no
 space tiles. Six nonempty sections are distributed between those rows according
@@ -185,7 +207,7 @@ each circuit has a separate bus lane and pin positions, with perimeter routing
 for connections to the far row. Rockers use drawn line/circle symbols. Lit sections use a restrained fill, and hover or keyboard
 focus traces the connections without glow. Once three switches are active, the
 others are disabled until one is released. The panel’s three indicators replace
-the separate inspection readout. Carbon’s
+the separate inspection readout. Reprographics’s
 five copier strips also omit spaces. Small corner numbers and colored edges distinguish identical
 chunks; a shared seal spans the full strip backgrounds. The original sits above the output tray,
 and operation buttons diagram each rearrangement. Strips animate between positions
@@ -201,7 +223,8 @@ central branches. A wrong letter restores all pickups and returns to the center.
 Click or tap a clear row or column to move like a rook; intermediate letters are
 checked. Arrows, WASD and direction buttons travel to the next junction, turn or
 uncollected letter. Collecting the last letter enables submission immediately.
-The map can be enlarged on small screens.
+The map fits the available width. Press any green square and continue dragging to trace a route; each crossed cell
+uses the same wall and letter checks as a single press.
 
 Recognition tiles, loose letters, combination locks, stamp trays, archive records, maze
 layouts and carbon arrangements vary between applications. The name supplies the
