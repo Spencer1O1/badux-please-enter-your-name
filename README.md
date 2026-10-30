@@ -44,9 +44,17 @@ intake and repeat requests in the same department. Starting a new application
 clears the count. This information lives only in memory with the current run.
 Both outcomes offer a locally generated 1200×900 PNG certificate, native sharing
 where supported, and a text-copy fallback. Copy result includes the name, frozen
-completion time or department reached, assistance count, and game link. Save
+completion time or department reached, assistance count, and game link. The
+standalone certificate uses the live page's font stacks and theme colors, with
+font metrics centering the stamp text. The department seal sits at the left of
+the export header and a smaller personal seal sits at the right. On-page outcomes
+place the personal seal beside the form label above the heading, clear of the main
+stamp, results and buttons. Save
 certificate downloads the PNG. Challenge a friend copies a general game link
 without the applicant name, run seed, or result. Friends begin a fresh application.
+Share and challenge links use the canonical public URL, `https://dona.cheque.dev`,
+including when opened from a local HTML file. Local `file:` addresses are never
+shared; a missing public URL leaves certificate saving and result copying available.
 The office header also offers Refer a friend from intake onward. It copies the
 same general link, gives brief feedback without moving the layout, and preserves
 the active application and queue timer. Blocked clipboard access offers a

@@ -922,6 +922,26 @@ footer {
   color: #586719
 }
 
+.certificate-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 56px;
+  margin: 0 6px 16px;
+}
+
+.certificate-header .section-number {
+  margin: 0;
+  text-align: left;
+  line-height: 1.5;
+}
+
+.certificate-header .section-number span {
+  display: block;
+  margin-top: 4px;
+}
+
 .certificate .stage-title {
   font-family: Georgia, serif;
   font-size: 34px;
@@ -1098,12 +1118,6 @@ footer {
 
   footer>span:first-child {
     max-width: 220px
-  }
-}
-
-@media(max-width:800px) {
-  .certificate {
-    padding-bottom: 100px;
   }
 }
 
@@ -1380,10 +1394,6 @@ footer {
 
   .certificate .stage-title {
     font-size: 31px
-  }
-
-  .certificate {
-    padding-bottom: 84px;
   }
 
   .certificate-name {

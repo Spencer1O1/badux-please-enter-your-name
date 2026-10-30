@@ -32,14 +32,21 @@ async function verifyHeaderReferral(page) {
     answer: document.querySelector("#name-input")?.value
   }));
   const before = await snapshot();
-  const expected = new URL(page.url()); expected.hash = ""; expected.search = "";
+  const expected = new URL(await page.locator('link[rel="canonical"]').getAttribute("href")); expected.hash = ""; expected.search = "";
   await page.evaluate(() => {
     window.headerCopied = null;
     window.referralExecCommand = document.execCommand;
     Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async value => { window.headerCopied = value; } } });
   });
   await page.locator("#refer-friend").click();
-  assert.equal(await page.evaluate(() => window.headerCopied), expected.href);
+  assert.equal(await page.evaluate(() => window.headerCopied), expected.href.replace(/\/+$/, ""));
+  const privateURL = await page.evaluate(() => {
+    const canonical = document.querySelector('link[rel="canonical"]');
+    const original = canonical.href;
+    try { canonical.href = location.href; return NameOffice.sharing.challengeURL(); }
+    finally { canonical.href = original; }
+  });
+  assert.equal(privateURL, null, "an unconfigured local file must not become a public challenge link");
   assert.deepEqual(await snapshot(), before, "referring a friend must preserve the current application and queue");
   assert.equal(await page.locator("#referral-feedback").isVisible(), true);
   await page.evaluate(() => {
@@ -48,7 +55,7 @@ async function verifyHeaderReferral(page) {
   });
   await page.locator("#refer-friend").click();
   await page.locator("#referral-copy-field").waitFor({ state: "visible" });
-  assert.equal(await page.locator("#referral-copy-field").inputValue(), expected.href);
+  assert.equal(await page.locator("#referral-copy-field").inputValue(), expected.href.replace(/\/+$/, ""));
   await page.keyboard.press("Escape");
   assert.equal(await page.locator("#referral-copy-field").isVisible(), false);
   assert.deepEqual(await snapshot(), before);
@@ -60,7 +67,7 @@ async function verifyHeaderReferral(page) {
 
 async function verifySharing(page, complete, artifactLabel) {
   const originalURL = page.url();
-  const generalURL = new URL(originalURL);
+  const generalURL = new URL(await page.locator('link[rel="canonical"]').getAttribute("href"));
   generalURL.hash = ""; generalURL.search = "";
   const name = await page.locator(".certificate-name").textContent();
   const result = await page.locator(complete ? "#completion-time" : "#missed-department").textContent();
@@ -78,7 +85,9 @@ async function verifySharing(page, complete, artifactLabel) {
     const view = new DataView(bytes.buffer);
     return { text, url, type: file.type, size: file.size, header: [...bytes.slice(0, 8)], width: view.getUint32(16), height: view.getUint32(20) };
   });
-  assert.equal(shared.url, generalURL.href, "sharing uses a general challenge link without a run seed");
+  assert.equal(shared.url, generalURL.href.replace(/\/+$/, ""), "sharing uses a general challenge link without a run seed");
+  assert.equal(new URL(shared.url).protocol, "https:", "local HTML sharing must use the public HTTPS address");
+  assert.equal(shared.text.includes("file:"), false, "shared results must not contain a local file address");
   assert.ok(shared.text.includes(name));
   assert.ok(shared.text.includes(complete ? result : result.replace(/^[0-9]+[: ·]+/, "")));
   assert.equal(shared.type, "image/png");
@@ -93,19 +102,24 @@ async function verifySharing(page, complete, artifactLabel) {
   await page.locator("#copy-result").click();
   assert.equal(await page.evaluate(() => window.copiedValues.at(-1)), shared.text);
   await page.locator("#challenge-friend").click();
-  assert.equal(await page.evaluate(() => window.copiedValues.at(-1)), generalURL.href);
+  assert.equal(await page.evaluate(() => window.copiedValues.at(-1)), generalURL.href.replace(/\/+$/, ""));
   assert.equal(page.url(), originalURL, "sharing must not replace or restart the active run");
   // Browsers without image sharing can still share the text and link natively.
   await page.evaluate(() => { navigator.canShare = () => false; window.sharedData = null; });
   await page.locator("#share-certificate").click();
   assert.equal(await page.evaluate(() => window.sharedData.files), undefined);
-  assert.equal(await page.evaluate(() => window.sharedData.url), generalURL.href);
+  assert.equal(await page.evaluate(() => window.sharedData.url), generalURL.href.replace(/\/+$/, ""));
   // Cancelling a native sheet must not copy anything or report an error.
   const copiedCount = await page.evaluate(() => window.copiedValues.length);
   await page.evaluate(() => { navigator.share = async () => { throw new DOMException("Cancelled", "AbortError"); }; });
   await page.locator("#share-certificate").click();
   assert.equal(await page.evaluate(() => window.copiedValues.length), copiedCount);
   assert.equal(await page.locator(".sharing-feedback").textContent(), "");
+  await page.evaluate(() => { navigator.share = async () => { throw new DOMException("Unavailable", "NotAllowedError"); }; });
+  await page.locator("#share-certificate").click();
+  await page.waitForFunction(count => window.copiedValues.length > count, copiedCount);
+  assert.equal(await page.evaluate(() => window.copiedValues.at(-1)), shared.text);
+  assert.equal(page.url(), originalURL, "a failed native share must not navigate away from the game");
   await page.evaluate(() => { navigator.share = undefined; });
   await page.locator("#share-certificate").click();
   await page.waitForFunction(count => window.copiedValues.length > count, copiedCount);
@@ -945,6 +959,7 @@ for (const engine of engines) {
       await takeTicket(page);
       assert.equal(await phase(), "missed");
       assert.equal(Number((await page.locator("#assistance-summary").textContent()).match(/\d+/)?.[0]), 0);
+      if (screenshotDirectory) await page.screenshot({ path: resolve(screenshotDirectory, `name-office-${engine}-one-form-missed.png`), fullPage: true });
       await page.locator("#missed-restart").click();
       await page.locator("#hint-button").click();
       await page.locator("#name-input").fill("Lady Soup");
