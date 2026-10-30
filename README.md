@@ -159,7 +159,9 @@ picks may also belong to the name. Choices are uppercase and distinct, with at
 least one new letter on every reshuffle; the run seed reproduces the sequence.
 
 Archive retrieves a misfiled application from six redacted folders. Four clerks’
-filing notes refer to numbered name letters and folder numbers; exactly one note
+quoted statements refer to numbered name letters and folder numbers; the number
+clue chooses even or odd with equal probability from the run seed. Four colored
+clerk portraits and speech-wave marks identify the speakers. Exactly one note
 is incorrect. Select the file matching three notes and flag the incorrect note.
 Two numbered steps separate file selection from marking a false statement. The
 review panel names the selected file; a red cross marks the chosen false note.

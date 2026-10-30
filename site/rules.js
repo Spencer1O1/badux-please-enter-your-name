@@ -143,14 +143,15 @@
   }
   function archiveTruth(file, clues, name) {
     const chars = nameLetters(name);
-    return clues.map(clue => clue.slot === null ? file.number % 2 === 0 : file.seal[clue.slot] === chars[clue.position]);
+    return clues.map(clue => clue.slot === null ? file.number % 2 === (clue.parity ?? 0) : file.seal[clue.slot] === chars[clue.position]);
   }
   function makeNameArchive(name, random = Math.random) {
     const chars = nameLetters(name);
     const positions = shuffle(chars.map((_, i) => i), random).slice(0, 3);
+    const parity = random() < .5 ? 0 : 1;
     const clues = [
       ...positions.map((position, slot) => ({ position, slot })),
-      { slot: null }
+      { slot: null, parity }
     ];
     // Exactly one row has three true statements. Every column leaves several
     // candidates, including a convincing decoy for which all four are true.
@@ -158,7 +159,7 @@
     const masks = [14, 15, 0, 3, 5, 9].map(mask => columns.reduce((result, bit, i) => result | ((mask >> bit & 1) << i), 0));
     const numbers = [0, 1].map(parity => shuffle(Array.from({ length: 45 }, (_, i) => 10 + i * 2 + parity), random));
     const files = masks.map(mask => ({
-      number: numbers[mask >> 3 & 1 ? 0 : 1].pop(),
+      number: numbers[mask >> 3 & 1 ? parity : 1 - parity].pop(),
       seal: positions.map((position, slot) => mask & (1 << slot) ? chars[position]
         : shuffle([...new Set([...chars, ...letters("ABCDEFGHIJKLMNOPQRSTUVWXYZ")])].filter(char => char !== chars[position]), random)[0])
     })).sort((a, b) => a.number - b.number);

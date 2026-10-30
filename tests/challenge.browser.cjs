@@ -300,9 +300,9 @@ for (const engine of engines) {
           const slots = [...node.children];
           return slots.length === 3 && slots.every(slot => slot.getBoundingClientRect().top === slots[0].getBoundingClientRect().top);
         })), true, "seal positions must stay on one row on narrow screens");
-        const archiveClues = await page.locator(".archive-clerk").evaluateAll(nodes => nodes.map(node => ({ slot: node.dataset.slot === "number" ? null : Number(node.dataset.slot), position: Number(node.dataset.position) })));
+        const archiveClues = await page.locator(".archive-clerk").evaluateAll(nodes => nodes.map(node => ({ slot: node.dataset.slot === "number" ? null : Number(node.dataset.slot), position: Number(node.dataset.position), parity: Number(node.dataset.parity) })));
         const archiveTruths = file => archiveClues.map(clue => clue.slot === null
-          ? file.number % 2 === 0 : file.seal[clue.slot] === R.nameLetters(name)[clue.position]);
+          ? file.number % 2 === clue.parity : file.seal[clue.slot] === R.nameLetters(name)[clue.position]);
         const original = archiveFiles.filter(file => archiveTruths(file).filter(Boolean).length === 3);
         assert.equal(original.length, 1);
         const liar = archiveTruths(original[0]).indexOf(false);

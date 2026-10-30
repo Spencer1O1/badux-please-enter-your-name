@@ -223,15 +223,17 @@ test("stamp trays always show twelve unique choices including the next required 
 });
 
 test("archive deductions have one solution, one liar and no decisive single clue", () => {
+  const parities = new Set();
   for (const name of names) {
     for (let attempt = 0; attempt < 50; attempt++) {
-      const puzzle = R.makeNameArchive(name);
+      const puzzle = R.makeNameArchive(name, R.createRandom(attempt, name, "Archive"));
+      parities.add(puzzle.clues.find(clue => clue.slot === null).parity);
       const chars = R.nameLetters(name);
       assert.equal(puzzle.files.length, 6);
       assert.equal(new Set(puzzle.files.map(file => file.number)).size, 6);
       assert.equal(puzzle.clues.length, 4);
       const evaluated = puzzle.files.map(file => ({ file, truths: puzzle.clues.map(clue =>
-        clue.slot === null ? file.number % 2 === 0 : file.seal[clue.slot] === chars[clue.position]) }));
+        clue.slot === null ? file.number % 2 === (clue.parity ?? 0) : file.seal[clue.slot] === chars[clue.position]) }));
       const solutions = evaluated.filter(({ truths }) => truths.filter(Boolean).length === 3);
       assert.equal(solutions.length, 1);
       assert.equal(solutions[0].file.number, puzzle.original);
@@ -248,6 +250,7 @@ test("archive deductions have one solution, one liar and no decisive single clue
       }
     }
   }
+  assert.deepEqual([...parities].sort(), [0, 1], "both even and odd clues must occur across seeds");
 });
 
 test("the AAA BBB archive fixture resolves to File 78 and Clerk B with letter-only positions", () => {

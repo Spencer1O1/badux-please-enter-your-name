@@ -307,7 +307,7 @@
 
 .archive-clerk {
   display: grid;
-  grid-template-columns: 60px 1fr 24px;
+  grid-template-columns: 57px minmax(0, 1fr) 24px;
   gap: 10px;
   font: 12px/1.5 var(--sans);
 }
@@ -708,12 +708,13 @@
   }
 
   .archive-clerk {
-    grid-template-columns: minmax(0, 1fr) 24px;
-    gap: 3px 8px;
+    grid-template-columns: 43px minmax(0, 1fr) 24px;
+    gap: 8px;
+    padding: 12px 8px;
   }
 
-  .archive-clerk strong, .archive-clerk > span:not(.archive-verdict) { grid-column: 1; }
-  .archive-clerk .archive-verdict { grid-column: 2; grid-row: 1 / 3; }
+  .clerk-speaker .clerk-avatar { width: 32px; height: 32px; }
+  .clerk-speaker .clerk-waves { width: 8px; }
 
   .progress {
     padding-left: 12px;
@@ -860,3 +861,11 @@
 .circuit-switch[aria-pressed=true] .power-symbol { stroke: #f0f5dd; }
 .circuit-switch[aria-pressed=true] .power-symbol-on { display: block; }
 .circuit-switch[aria-pressed=true] .power-symbol-off { display: none; }
+
+.clerk-speaker { display: flex; gap: 3px; align-items: center; align-self: start; padding-top: 4px; color: var(--clerk-color); }
+.clerk-avatar { width: 44px; height: 44px; flex: none; }
+.clerk-waves { width: 10px; height: 24px; flex: none; opacity: .65; }
+.clerk-speech { min-width: 0; }
+.archive-clerk .clerk-speech strong { color: var(--clerk-color); }
+.clerk-claim { display: block; margin-top: 4px; line-height: 1.6; }
+.archive-clerk:hover .clerk-waves, .archive-clerk:focus-visible .clerk-waves { opacity: 1; }

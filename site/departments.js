@@ -29,6 +29,21 @@
     });
   }
 
+  function clerkAvatar(index) {
+    const speaker = document.createElement("span");
+    speaker.className = "clerk-speaker";
+    speaker.setAttribute("aria-hidden", "true");
+    const hair = [
+      '<path d="M15 20V15Q15 7 24 9Q34 8 33 19L28 15L23 17L19 15Z"/>',
+      '<path d="M15 20Q11 9 22 9Q35 5 34 20L29 13L16 17Z"/>',
+      '<circle cx="24" cy="9" r="6"/><path d="M14 20Q12 10 24 11Q36 10 34 21L30 15Q24 19 16 16Z"/>',
+      '<path d="M14 21Q11 13 17 12L17 22ZM31 12Q37 13 34 22L31 22Z"/>'
+    ];
+    const glasses = index === 0 || index === 3 ? '<g fill="none" stroke="#34443b" stroke-width="1.3"><rect x="16" y="19" width="7" height="5" rx="1"/><rect x="25" y="19" width="7" height="5" rx="1"/><path d="M23 21H25"/></g>' : '';
+    speaker.innerHTML = `<svg class="clerk-avatar" viewBox="0 0 48 48"><circle cx="24" cy="24" r="23" fill="var(--clerk-paper)"/><path d="M8 45V40Q8 31 24 31Q40 31 40 40V45" fill="currentColor"/><path d="M19 32L24 39L29 32" fill="#fffef8"/><circle cx="24" cy="21" r="10" fill="#eed6b5"/><g fill="#34443b">${hair[index]}<circle cx="20" cy="21" r="1"/><circle cx="28" cy="21" r="1"/></g>${glasses}<path d="M21 27H27" stroke="#7c6552" stroke-width="1.2"/></svg><svg class="clerk-waves" viewBox="0 0 12 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 8Q6 12 2 16M6 4Q13 12 6 20"/></svg>`;
+    return speaker;
+  }
+
   const departments = [
     {
       label: "Intake", department: "INITIAL INTAKE", title: "Let's get started.",
@@ -302,7 +317,7 @@
       label: "Archive", department: "MISFILED APPLICATIONS", title: "We’ve misfiled your application.",
       paperwork: { hold: "Misfiled application must be found.", approval: ({ archive }) => `Application file ${archive.number} retrieved.` },
       description: "Three statements fit your file. One is false.",
-      body: reference + `<div class="name-index" aria-label="Numbered name letters, spaces omitted"></div><p class="archive-step"><b>1</b> Choose your file</p><div class="archive-files" role="group" aria-label="Archive files"></div><div class="archive-review"><p class="archive-step"><b>2</b> Mark the false statement</p><output class="archive-context" id="archive-context" aria-live="polite">No file selected</output><div class="archive-clerks" role="group" aria-label="Clerk statements"></div></div>`,
+      body: reference + `<div class="name-index" aria-label="Numbered name letters, spaces omitted"></div><p class="archive-step"><b>1</b> Choose your file</p><div class="archive-files" role="group" aria-label="Archive files"></div><div class="archive-review"><p class="archive-step"><b>2</b> Who is wrong?</p><output class="archive-context" id="archive-context" aria-live="polite">No file selected</output><div class="archive-clerks" role="group" aria-label="Clerk statements"></div></div>`,
       action: "Retrieve my application", footnote: "Filed under somebody else, probably.",
       note: { text: "They filed my application under someone else. Now I need my application to prove I am not them.", author: "Applicant 337, identity misfiled" },
       mount({ root, applicant, records, announce, random }) {
@@ -351,22 +366,31 @@
           root.querySelectorAll(".name-index > span").forEach((node, i) => node.classList.toggle("archive-linked", clue?.position === i));
         }
         const clerkButtons = puzzle.clues.map((clue, index) => {
-          const statement = clue.slot === null ? "Your file number is even."
-            : `Code letter ${clue.slot + 1} = name letter ${clue.position + 1}`;
+          const position = clue.position + 1;
+          const suffix = position % 100 >= 11 && position % 100 <= 13 ? "th" : ({ 1: "st", 2: "nd", 3: "rd" }[position % 10] || "th");
+          const statement = clue.slot === null ? `Your file number is ${clue.parity === 0 ? "even" : "odd"}.`
+            : `The code's ${["1st", "2nd", "3rd"][clue.slot]} letter is the ${position}${suffix} letter of your name.`;
           const node = button("", "archive-clerk");
+          node.style.setProperty("--clerk-color", ["#496d91", "#9a7140", "#7b608b", "#477c70"][index]);
+          node.style.setProperty("--clerk-paper", ["#dce7ee", "#eee2cd", "#e8dfed", "#dceae0"][index]);
+          if (clue.slot === null) node.dataset.parity = clue.parity;
           node.dataset.slot = clue.slot ?? "number";
           if (clue.position !== undefined) node.dataset.position = clue.position;
           node.setAttribute("aria-pressed", "false");
           const label = document.createElement("strong");
           label.textContent = `Clerk ${"ABCD"[index]}`;
-          const claim = document.createElement("span");
+          const claim = document.createElement("q");
+          claim.className = "clerk-claim";
           claim.textContent = statement;
+          const speech = document.createElement("div");
+          speech.className = "clerk-speech";
+          speech.append(label, claim);
           const mark = document.createElement("span");
           mark.className = "archive-verdict";
           mark.textContent = "×";
           mark.setAttribute("aria-hidden", "true");
           node.setAttribute("aria-label", `Mark Clerk ${"ABCD"[index]}’s statement false: ${statement}`);
-          node.append(label, claim, mark);
+          node.append(clerkAvatar(index), speech, mark);
           node.addEventListener("mouseenter", () => linkFields(clue));
           node.addEventListener("focus", () => linkFields(clue));
           const restoreLink = () => linkFields(selectedLiar === null ? null : puzzle.clues[selectedLiar]);
