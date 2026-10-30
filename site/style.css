@@ -752,7 +752,7 @@ h1 em {
   text-underline-offset: 3px
 }
 
-.text-button:hover {
+.text-button:hover:not(:disabled) {
   color: #9b3925
 }
 

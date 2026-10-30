@@ -260,7 +260,6 @@
 
 .letter-stamp:disabled {
   opacity: .45;
-  cursor: default;
 }
 
 #stamped-name {
@@ -819,7 +818,6 @@
 
 .circuit-switch:disabled {
   opacity: .55;
-  cursor: default;
 }
 
 .circuit-switch:hover:not(:disabled) {
@@ -962,7 +960,6 @@
 
 .copy-operation:disabled {
   opacity: .45;
-  cursor: default;
 }
 
 .copy-operation-icon {
@@ -995,12 +992,6 @@
 
 .copy-machine .tool-row button {
   font-size: 9px;
-}
-
-/* Keep both copier tools equally readable, including before the first move. */
-.copy-machine .text-button:disabled {
-  opacity: 1;
-  text-decoration: underline;
 }
 
 .seal-example {
