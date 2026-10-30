@@ -100,23 +100,23 @@ test("completion times retain milliseconds without rounding up across a minute",
   }
 });
 
-test("queue tickets start 48 places apart and reach the player after exactly eight minutes", () => {
+test("queue tickets start 30 places apart and reach the player after exactly five minutes", () => {
   for (let i = 0; i < 1000; i++) {
     const ticket = R.issueQueueTicket();
     assert.ok(ticket.number >= 100 && ticket.number <= 999);
-    assert.equal(ticket.number - ticket.serving, 48);
+    assert.equal(ticket.number - ticket.serving, 30);
     assert.equal(R.queueStatus(ticket, null, 1e12).phase, "waiting");
     assert.equal(R.queueStatus(ticket, null, 1e12).serving, ticket.serving);
   }
-  const ticket = { number: 500, serving: 452 }, start = 1000000;
+  const ticket = { number: 500, serving: 470 }, start = 1000000;
   for (const [elapsed, steps, phase] of [[0,0,"normal"], [9999,0,"normal"], [10000,1,"normal"],
-    [359999,35,"normal"], [360000,36,"warning"], [420000,42,"urgent"], [450000,45,"critical"],
-    [479999,47,"critical"], [480000,48,"missed"], [900000,48,"missed"]]) {
+    [179999,17,"normal"], [180000,18,"warning"], [240000,24,"urgent"], [270000,27,"critical"],
+    [299999,29,"critical"], [300000,30,"missed"], [900000,30,"missed"]]) {
     const queue = R.queueStatus(ticket, start, start + elapsed);
     assert.equal(queue.serving, ticket.serving + steps);
-    assert.equal(queue.ahead, 48 - steps);
+    assert.equal(queue.ahead, 30 - steps);
     assert.equal(queue.phase, phase);
-    assert.equal(queue.remainingMs, Math.max(0, 480000 - elapsed));
+    assert.equal(queue.remainingMs, Math.max(0, 300000 - elapsed));
   }
   assert.equal(R.queueStatus(ticket, start, start - 1000).serving, ticket.serving);
 });

@@ -69,7 +69,7 @@ for (const engine of engines) {
         assert.equal(await page.locator("#queue-number").evaluate(node => node.classList.contains("ticket-unissued")), true);
         const serving = await page.locator("#now-serving").textContent();
         assert.ok(Number(queueNumber) >= 100 && Number(queueNumber) <= 999);
-        assert.equal(Number(queueNumber) - Number(serving), 48);
+        assert.equal(Number(queueNumber) - Number(serving), 30);
         assert.equal(await page.locator("body").getAttribute("data-queue-phase"), "waiting");
         assert.equal(await page.locator(".queue").isVisible(), true);
         assert.equal(await page.locator(".office-note").isVisible(), true);
@@ -541,7 +541,7 @@ for (const engine of engines) {
         await submit();
         assert.equal(await page.locator(".certificate:not(.certificate-missed)").count(), 1);
         assert.equal(await page.locator(".certificate-name").textContent(), name);
-        assert.equal(await page.locator("#completion-time").textContent(), "7:59.999");
+        assert.equal(await page.locator("#completion-time").textContent(), "4:59.999");
         assert.equal(Number((await page.locator("#assistance-summary").textContent()).match(/\d+/)?.[0]), assistanceCount);
         assert.equal(parseInt(await page.locator("#receipt-count").textContent(), 10), 12);
         assert.equal(await page.locator("#hint-button").isVisible(), false);
@@ -552,7 +552,7 @@ for (const engine of engines) {
         await page.clock.setFixedTime(queueTestTime + R.queueDurationMs + 60000);
         await page.evaluate(() => window.dispatchEvent(new Event("focus")));
         assert.equal(await page.locator("#now-serving").textContent(), securedServing, "completion freezes the queue");
-        assert.equal(await page.locator("#completion-time").textContent(), "7:59.999", "the speedrun result must remain frozen after completion");
+        assert.equal(await page.locator("#completion-time").textContent(), "4:59.999", "the speedrun result must remain frozen after completion");
         assert.equal(await page.locator("body").getAttribute("data-queue-phase"), "complete");
         await screenshot("complete");
         await page.locator("#another-button").click();
@@ -637,8 +637,8 @@ for (const engine of engines) {
       const phase = () => page.locator("body").getAttribute("data-queue-phase");
       const nowServing = async () => Number(await page.locator("#now-serving").textContent());
       const original = await nowServing();
-      const ticket = original + 48;
-      assert.equal(ticket - original, 48);
+      const ticket = original + 30;
+      assert.equal(ticket - original, 30);
       await page.clock.fastForward(600000);
       assert.equal(await phase(), "waiting", "opening instructions do not consume the deadline");
       assert.equal(await nowServing(), original);
@@ -692,7 +692,7 @@ for (const engine of engines) {
       await page.locator("#queue-ticker").waitFor({ state: "visible" });
       assert.equal(await page.locator("#queue-ticker").isVisible(), true);
       await page.locator("#department-form").evaluate(form => { form.style.minHeight = ""; });
-      await page.clock.fastForward(350000);
+      await page.clock.fastForward(170000);
       assert.equal(await phase(), "warning");
       assert.equal(ticket - await nowServing(), 12);
       await page.locator("#name-input").fill("LADY SOUP");
@@ -723,7 +723,7 @@ for (const engine of engines) {
       assert.equal(await page.locator(".certificate-missed").count(), 1);
       assert.equal(await page.locator("#missed-number").textContent(), String(ticket));
       assert.equal(await page.locator("#missed-forms").textContent(), "2");
-      assert.equal(await page.locator("#missed-window").textContent(), "8:00");
+      assert.equal(await page.locator("#missed-department").textContent(), await page.evaluate(() => `03 · ${NameOffice.departments[2].label}`));
       assert.equal(Number((await page.locator("#assistance-summary").textContent()).match(/\d+/)?.[0]), 3);
       const outcomeLayout = await page.locator(".certificate-missed").evaluate(certificate => {
         const stamp = certificate.querySelector(".outcome-stamp");
@@ -747,8 +747,8 @@ for (const engine of engines) {
       assert.equal(await page.locator("#queue-ticker").isVisible(), false);
       if (screenshotDirectory) await page.screenshot({ path: resolve(screenshotDirectory, `name-office-${engine}-queue-missed.png`), fullPage: true });
       await page.locator("#missed-restart").click();
-      const fresh = await nowServing() + 48;
-      assert.equal(fresh - await nowServing(), 48);
+      const fresh = await nowServing() + 30;
+      assert.equal(fresh - await nowServing(), 30);
       assert.equal(await page.locator(".progress").isVisible(), true);
       assert.equal(await phase(), "waiting");
       assert.equal(parseInt(await page.locator("#receipt-count").textContent(), 10), 0);

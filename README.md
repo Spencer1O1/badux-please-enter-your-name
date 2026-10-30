@@ -20,7 +20,7 @@ slides away as the next one arrives. The game reveals its total only on completi
 
 Intake shows Now serving but leaves the applicant ticket unissued. A valid name
 opens a generic departmental ticket, with no time estimate or queue count on it.
-Taking the ticket assigns the number exactly 48 places ahead of Now serving and
+Taking the ticket assigns the number exactly 30 places ahead of Now serving and
 begins the reveal. The queue starts after that reveal finishes: Now serving
 advances once every 10 seconds. Opening instructions, invalid intake and reading the ticket do not
 use the window. Escape returns to intake without taking the ticket. Taking it
@@ -30,7 +30,7 @@ elapsed time on return. Finish and submit all paperwork before your number is
 called, or a voided certificate replaces the form. Success and failure share
 one centered certificate layout, name placement, seal frame, stamp spacing,
 and restart-button position. Failure shows the missed ticket, forms filed, and
-eight-minute window.
+department number and name reached. The deadline is five minutes.
 Warnings escalate at two minutes, one minute, thirty seconds, and the final call.
 A compact queue display stays visible when the main panel scrolls away. Reduced
 motion keeps the urgency colors but disables pulsing. Completion freezes the queue
@@ -186,7 +186,10 @@ for connections to the far row. Rockers use drawn line/circle symbols. Lit secti
 focus traces the connections without glow. Once three switches are active, the
 others are disabled until one is released. The panel’s three indicators replace
 the separate inspection readout. Carbon’s
-five copier strips also omit spaces, retaining their strip numbers for controls.
+five copier strips also omit spaces. Small corner numbers and colored edges distinguish identical
+chunks; a shared seal spans the full strip backgrounds. The original sits above the output tray,
+and operation buttons diagram each rearrangement. Strips animate between positions
+unless reduced motion is enabled.
 
 The maze uses 225 walkable cells with thin walls between them, generated with a
 branching Prim frontier and four routes from a central mailroom. Collect the

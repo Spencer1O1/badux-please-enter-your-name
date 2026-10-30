@@ -60,12 +60,12 @@
     {
       label: "Volume", department: "VOLUME CONTROL", title: "The clerk is a little far away.",
       paperwork: { hold: "Capitalized copy required.", approval: "Capitalized copy accepted." },
-      description: "Yell your name in ALL CAPITAL LETTERS.",
-      body: reference + input("Your name, but louder", "name-input", "ALL CAPITAL LETTERS"),
+      description: "Yell your name in ALL CAPS.",
+      body: reference + input("Your name, but louder", "name-input", "ALL CAPS"),
       action: "Say it louder", footnote: "Capitalization is a leadership skill.",
       note: { text: "I raised my voice. They capitalized my existence. I think I am a heading now.", author: "Applicant 206, awaiting lowercase" },
       mount: ({ root, applicant }) => ({
-        validate: () => readName(root) === applicant.toUpperCase().normalize("NFC") ? "" : "Same name. ALL CAPITAL LETTERS.",
+        validate: () => readName(root) === applicant.toUpperCase().normalize("NFC") ? "" : "Same name. ALL CAPS.",
         hint: () => "Try: " + applicant.toUpperCase()
       })
     },
@@ -317,7 +317,7 @@
       label: "Archive", department: "MISFILED APPLICATIONS", title: "We’ve misfiled your application.",
       paperwork: { hold: "Misfiled application must be found.", approval: ({ archive }) => `Application file ${archive.number} retrieved.` },
       description: "Three statements fit your file. One is false.",
-      body: reference + `<div class="name-index" aria-label="Numbered name letters, spaces omitted"></div><p class="archive-step"><b>1</b> Choose your file</p><div class="archive-files" role="group" aria-label="Archive files"></div><div class="archive-review"><p class="archive-step"><b>2</b> Who is wrong?</p><output class="archive-context" id="archive-context" aria-live="polite">No file selected</output><div class="archive-clerks" role="group" aria-label="Clerk statements"></div></div>`,
+      body: reference + `<div class="name-index" aria-label="Numbered name letters, spaces omitted"></div><p class="archive-step"><b>1</b> Choose your file</p><div class="archive-files" role="group" aria-label="Archive files"></div><div class="archive-review"><p class="archive-step"><b>2</b> One of the clerks is mistaken. Who is it?</p><output class="archive-context" id="archive-context" aria-live="polite">No file selected</output><div class="archive-clerks" role="group" aria-label="Clerk statements"></div></div>`,
       action: "Retrieve my application", footnote: "Filed under somebody else, probably.",
       note: { text: "They filed my application under someone else. Now I need my application to prove I am not them.", author: "Applicant 337, identity misfiled" },
       mount({ root, applicant, records, announce, random }) {
@@ -336,7 +336,9 @@
           node.setAttribute("aria-pressed", "false");
           node.setAttribute("aria-label", `File ${file.number}, filing code ${file.seal.join(" · ")}`);
           const label = document.createElement("small");
-          label.textContent = `FILE ${file.number}`;
+          const fileNumber = document.createElement("b");
+          fileNumber.textContent = file.number;
+          label.append(document.createTextNode("FILE "), fileNumber);
           const seal = document.createElement("strong");
           file.seal.forEach(char => {
             const letter = document.createElement("span");
@@ -696,26 +698,39 @@
       label: "Carbon", department: "CARBON COPY RECONCILIATION", title: "The copier has cut up your name.",
       paperwork: { hold: "Carbon copy must be restored.", approval: "Carbon copy certified." },
       description: "Reassemble your name in four moves.",
-      body: reference + `<div class="copy-comparison"><div><span class="micro">ORIGINAL NAME STRIPS</span><div class="copy-strips" id="copy-target"></div></div><div><span class="micro">CURRENT COPY</span><div class="copy-strips" id="copy-value" aria-live="polite"></div></div></div><div class="copy-controls" role="group" aria-label="Copier controls"></div><p class="tiles-caption" id="copy-moves" aria-live="polite"></p><div class="tool-row"><button class="text-button" id="copy-undo" type="button">Undo operation ↶</button><button class="text-button" id="copy-reset" type="button">Reload original ↺</button></div>`,
+      body: reference + `<div class="copy-machine"><div class="copy-machine-header"><span class="micro">DOCUMENT COPIER</span><p id="copy-moves" aria-live="polite"></p></div><div class="copy-comparison"><div class="copy-original"><span class="micro">ORIGINAL</span><div class="copy-strips" id="copy-target"></div></div><div class="copy-output"><span class="micro">OUTPUT TRAY</span><div class="copy-strips" id="copy-value" aria-live="polite"></div></div></div><div class="copy-controls" role="group" aria-label="Copier controls"></div><div class="tool-row"><button class="text-button" id="copy-undo" type="button">Undo operation ↶</button><button class="text-button" id="copy-reset" type="button">Revert ↺</button></div></div>`,
       action: "Certify my name", footnote: "Original identity. Recycled paper.",
       note: { text: "The copy looked more like me than the original. They asked which one was applying.", author: "Applicant 193, duplicate pending" },
       mount({ root, applicant, announce, random }) {
         const { start, target, strips } = R.makeCopyPuzzle(applicant, random);
         const history = [start];
         const value = () => history[history.length - 1];
+        const stripColors = ["#57778b", "#947140", "#77648a", "#538171", "#a16550"];
         function renderStrips(selector, order) {
           const holder = root.querySelector(selector);
+          const previous = new Map([...holder.children].map(node => [node.dataset.strip, node.getBoundingClientRect()]));
+          const existing = new Map([...holder.children].map(node => [node.dataset.strip, node]));
           holder.dataset.order = order;
-          holder.replaceChildren();
-          for (const id of order) {
+          const nodes = [...order].map(id => {
+            if (existing.has(id)) return existing.get(id);
             const node = document.createElement("span");
+            node.dataset.strip = id;
+            node.style.setProperty("--strip", id);
+            node.style.setProperty("--strip-color", stripColors[Number(id)]);
             const number = document.createElement("small");
             number.textContent = Number(id) + 1;
             const chunk = document.createElement("b");
             chunk.textContent = strips[Number(id)];
             node.append(number, chunk);
-            holder.append(node);
-          }
+            return node;
+          });
+          holder.replaceChildren(...nodes);
+          if (!matchMedia("(prefers-reduced-motion: reduce)").matches) nodes.forEach(node => {
+            const before = previous.get(node.dataset.strip);
+            if (!before) return;
+            const after = node.getBoundingClientRect();
+            if (before.left !== after.left) node.animate([{ transform: `translateX(${before.left - after.left}px)` }, { transform: "translateX(0)" }], { duration: 220, easing: "ease-out" });
+          });
         }
         renderStrips("#copy-target", target);
         const controls = [];
@@ -727,7 +742,25 @@
           root.querySelector("#copy-undo").disabled = history.length === 1;
         }
         R.copyOperations.forEach(operation => {
-          const node = button(operation.label);
+          const node = button("");
+          node.className = "copy-operation";
+          const icon = document.createElement("span");
+          icon.className = "copy-operation-icon";
+          icon.textContent = ["⇄", "↶", "⇆"][R.copyOperations.indexOf(operation)];
+          icon.setAttribute("aria-hidden", "true");
+          const label = document.createElement("b");
+          label.textContent = operation.label;
+          const diagram = document.createElement("span");
+          diagram.className = "copy-operation-diagram";
+          diagram.setAttribute("aria-hidden", "true");
+          for (const id of operation.apply("12345")) {
+            const tile = document.createElement("i");
+            tile.textContent = id;
+            tile.style.setProperty("--strip-color", stripColors[Number(id) - 1]);
+            diagram.append(tile);
+          }
+          node.append(icon, label, diagram);
+          node.setAttribute("aria-label", operation.label);
           node.title = operation.description;
           node.addEventListener("click", () => { history.push(operation.apply(value())); update(); });
           controls.push(node);

@@ -31,7 +31,7 @@
     return count >= 6 && count <= 20 && parts.length === 2
       && parts.every(part => /\p{L}/u.test(part));
   }
-  const queuePlaces = 48;
+  const queuePlaces = 30;
   const queueStepMs = 10000;
   const queueDurationMs = queuePlaces * queueStepMs;
   function formatRunTime(milliseconds) {
@@ -204,7 +204,7 @@
   const copyOperations = [
     { label: "Mirror", description: "Reverse all five strips", apply: reverse },
     { label: "Feed left", description: "Move the first strip to the end", apply: value => value.slice(1) + value[0] },
-    { label: "Cross wires", description: "Swap the second and third strips", apply: value => value[0] + value[2] + value[1] + value.slice(3) }
+    { label: "Swap", description: "Swap the second and third strips", apply: value => value[0] + value[2] + value[1] + value.slice(3) }
   ];
   function copyPaths(start) {
     const queue = [[start, []]];

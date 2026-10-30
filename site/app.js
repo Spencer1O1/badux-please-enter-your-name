@@ -174,7 +174,7 @@
       <p class="certificate-line">${complete ? "IS, WITH UNREASONABLE CONFIDENCE,<br>A SEQUENCE OF LETTERS." : "WAS CALLED AS TICKET <span id='missed-number'></span><br>WITHOUT THE REQUIRED PAPERWORK."}</p>
       <div class="outcome-stamp ${complete ? "approved-stamp" : "missed-stamp"}">${complete ? "APPROVED<small>YES. REALLY. YOU CAN GO.</small>" : "MISSED<small>NO. REALLY. START AGAIN.</small>"}</div>
       <p class="stage-description">${complete ? "Twelve departments. One name. Zero practical benefit.<br>Your vowels have been returned. Your time has not.<br>This certificate is valid until you stop looking at it." : "Your paperwork wasn’t ready.<br><span id='missed-forms'></span> forms filed. Application void.<br>No extensions. Naturally."}</p>
-      <div class="run-result"><span class="micro">${complete ? "COMPLETION TIME" : "TIME WINDOW"}</span><output id="${complete ? "completion-time" : "missed-window"}"></output><small>${complete ? "From Begin to final approval." : "New ticket. All paperwork starts over."}</small><small id="assistance-summary"></small></div>
+      <div class="run-result"><span class="micro">${complete ? "COMPLETION TIME" : "DEPARTMENT REACHED"}</span><output id="${complete ? "completion-time" : "missed-department"}"></output><small>${complete ? "From first department to final approval." : "New ticket. All paperwork starts over."}</small><small id="assistance-summary"></small></div>
       <div class="action-row"><button class="primary-button" id="${complete ? "another-button" : "missed-restart"}" type="button">${complete ? "Acquire another name" : "Take a new ticket"} <span class="button-arrow" aria-hidden="true">↺</span></button></div>
       <div class="personal-seal" aria-label="${complete ? "Your personal approval seal" : "Personal seal not issued"}"></div>
     </div>`;
@@ -184,7 +184,7 @@
     else {
       stage.querySelector("#missed-number").textContent = state.queue.number;
       stage.querySelector("#missed-forms").textContent = state.current;
-      stage.querySelector("#missed-window").textContent = `${R.queueDurationMs / 60000}:00`;
+      stage.querySelector("#missed-department").textContent = `${String(state.current + 1).padStart(2, "0")}: ${departments[state.current].label}`;
     }
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.setAttribute("viewBox", "0 0 11 7");
@@ -373,7 +373,7 @@
 
   hintButton.addEventListener("click", () => {
     if (!updateQueue() || !activeDepartment || state.ticketPending || ticketRevealTimer !== null) return;
-    const hint = activeDepartment.hint();
+    const hint = activeDepartment.hint().replace(/\p{L}/u, letter => letter.toUpperCase());
     state.assistanceCount++;
     announce(hint, "hint");
   });
